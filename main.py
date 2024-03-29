@@ -68,7 +68,6 @@ async def main():
         threads = THREADS
     else:
         threads = len(autoreger.accounts)
-        print(f"Threads: {threads}")
 
     await autoreger.start(worker_task, threads)
 
