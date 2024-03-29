@@ -24,18 +24,16 @@ class AutoReger:
             for creation_func in auto_creation:
                 consumables.append([creation_func() for _ in range(amount)])
 
+        consumables[1] = consumables[1][:len(consumables[0])]
+
         if with_id:
             consumables.insert(0, (list(range(1, len(consumables[0]) + 1))))
-
-        if not consumables[0]:
-            logger.warning("No accounts found :(")
-            exit(0)
 
         return cls(list(zip_longest(*consumables)))
 
     async def start(self, worker_func: callable, threads: int = 1, delay: tuple = (0, 0)):
-        if not self.accounts:
-            logger.error("No accounts found :(")
+        if not self.accounts or not self.accounts[0]:
+            logger.warning("No accounts found :(")
             return
 
         logger.info(f"Successfully grabbed {len(self.accounts)} accounts")

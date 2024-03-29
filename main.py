@@ -13,7 +13,7 @@ from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS
 
 
-async def worker_task(_id, account: str, proxy: str):
+async def worker_task(_id, account: str, proxy: str = None):
     consumables = account.split(":")[:2]
 
     if len(consumables) == 1:
