@@ -1,4 +1,5 @@
 import asyncio
+import platform
 import random
 import traceback
 
@@ -72,6 +73,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    if platform.system() == "Windows":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     asyncio.run(main())
