@@ -21,7 +21,7 @@ class Grass(GrassWs, GrassRest):
         self.proxy_score = None
         self.id = _id
 
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(trust_env=True, connector=aiohttp.TCPConnector(ssl=False))
 
     async def start(self):
         # logger.info(f"{self.id} | {self.email} | Starting...")
