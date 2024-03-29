@@ -47,13 +47,13 @@ class Grass(GrassWs, GrassRest):
                     await self.send_pong()
 
                     logger.info(f"{self.id} | Mined grass.")
-                    # await self.handle_proxy_score(browser_id, 50)
                     await asyncio.sleep(19.9)
-                    # await self.handle_proxy_score(browser_id, 50)
             except WebsocketClosedException as e:
                 logger.info(f"Websocket closed: {e}. Retrying...")
             except ConnectionResetError as e:
                 logger.info(f"Connection reset: {e}. Retrying...")
+            except TypeError as e:
+                logger.info(f"Type error: {e}. Retrying...")
             await asyncio.sleep(1)
 
     @retry(stop=stop_after_attempt(30),
@@ -65,14 +65,16 @@ class Grass(GrassWs, GrassRest):
         await self.connect()
         logger.info(f"{self.id} | Connected")
 
-    @retry(stop=stop_after_attempt(20),
+    @retry(stop=stop_after_attempt(10),
            retry=retry_if_not_exception_type(LowProxyScoreException),
            before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
            wait=wait_random(5, 7),
            reraise=True)
     async def handle_proxy_score(self, min_score: int):
         if (proxy_score := await self.get_proxy_score_by_device_id()) is None:
-            raise ProxyScoreNotFoundException(f"{self.id} | Proxy score not found for {self.proxy}. Retrying...")
+            # logger.info(f"{self.id} | Proxy score not found for {self.proxy}. Guess Bad proxies! Continue...")
+            # return None
+            raise ProxyScoreNotFoundException(f"{self.id} | Proxy score not found for {self.proxy}. Guess Bad proxies!")
         elif proxy_score >= min_score:
             self.proxy_score = proxy_score
             logger.success(f"{self.id} | Proxy score: {self.proxy_score}")
