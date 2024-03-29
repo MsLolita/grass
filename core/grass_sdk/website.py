@@ -125,7 +125,7 @@ class GrassRest:
     async def get_proxy_score_by_device_id(self):
         res_json = await self.get_devices_info()
 
-        if res_json.get("data") is None:
+        if not isinstance(res_json, dict) or res_json.get("data") is None:
             return None
 
         devices = res_json['data']['currentDeviceData']
