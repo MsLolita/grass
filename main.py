@@ -64,10 +64,13 @@ async def main():
     )
 
     if REGISTER_ACCOUNT_ONLY:
-        logger.info("Register account only mode!")
+        msg = "Register account only mode!"
         threads = THREADS
     else:
+        msg = "Mining mode ON"
         threads = len(autoreger.accounts)
+
+    logger.info(f"Threads: {threads} | {msg} ")
 
     await autoreger.start(worker_task, threads)
 
