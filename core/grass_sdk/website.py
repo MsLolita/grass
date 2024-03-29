@@ -39,6 +39,7 @@ class GrassRest:
                            "224f5352727465574e5a33764d743473225d")
         self.session = None
         self.ip = None
+        self.username = None
 
     @retry(stop=stop_after_attempt(3),
            before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
@@ -63,6 +64,9 @@ class GrassRest:
             raise aiohttp.ClientConnectionError(f"Create acc response: | {await response.text()}")
 
         logger.info(f"{self.email} | Account created!")
+
+        with open("logs/new_accounts.txt", "a", encoding="utf-8") as f:
+            f.write(f"{self.email}:{self.username}:{self.password}\n")
 
         return await response.json()
 
@@ -139,14 +143,14 @@ class GrassRest:
         return device_info['data']['final_score']
 
     async def get_json_params(self, params, referral: str = "erxggzon61FWrJ9", role_stable: str = "726566657272616c"):
-        username = Person().username
+        self.username = Person().username
 
         json_data = {
             'email': self.email,
             'password': self.password,
             'role': 'USER',
             'referral': referral,
-            'username': username,
+            'username': self.username,
             'recaptchaToken': await CaptchaService().get_captcha_token_async(),
             'listIds': [
                 15,
