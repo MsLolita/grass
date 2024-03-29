@@ -65,8 +65,9 @@ class Grass(GrassWs, GrassRest):
         await self.connect()
         logger.info(f"{self.id} | Connected")
 
-    @retry(stop=stop_after_attempt(5),
+    @retry(stop=stop_after_attempt(20),
            retry=retry_if_not_exception_type(LowProxyScoreException),
+           before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
            wait=wait_random(5, 7),
            reraise=True)
     async def handle_proxy_score(self, min_score: int):
