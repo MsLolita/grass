@@ -1,6 +1,6 @@
 import asyncio
-import platform
 import random
+import sys
 import traceback
 
 import aiohttp
@@ -76,7 +76,9 @@ async def main():
 
 
 if __name__ == "__main__":
-    if platform.system() == "Windows":
+    if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
 
     asyncio.run(main())
