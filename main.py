@@ -24,7 +24,7 @@ async def worker_task(_id, account: str, proxy: str = None):
 
     grass = None
 
-    await asyncio.sleep(random.randint(1, 3) * _id)
+    await asyncio.sleep(random.uniform(1, 1.5) * _id)
     logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
     for _ in range(1000):
@@ -58,16 +58,17 @@ async def worker_task(_id, account: str, proxy: str = None):
 
 
 async def main():
-    if REGISTER_ACCOUNT_ONLY:
-        logger.info("Register account only mode!")
-        threads = THREADS
-    else:
-        threads = len(ACCOUNTS_FILE_PATH)
-
     autoreger = AutoReger.get_accounts(
         ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH,
         with_id=True
     )
+
+    if REGISTER_ACCOUNT_ONLY:
+        logger.info("Register account only mode!")
+        threads = THREADS
+    else:
+        threads = len(autoreger.accounts)
+        print(f"Threads: {threads}")
 
     await autoreger.start(worker_task, threads)
 
