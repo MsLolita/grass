@@ -27,7 +27,7 @@ async def worker_task(_id, account: str, proxy: str = None):
     await asyncio.sleep(random.randint(1, 3) * _id)
     logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
-    for _ in range(3):
+    for _ in range(1000):
         try:
             grass = Grass(_id, email, password, proxy)
 
