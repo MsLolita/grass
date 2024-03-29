@@ -65,7 +65,7 @@ class Grass(GrassWs, GrassRest):
         await self.connect()
         logger.info(f"{self.id} | Connected")
 
-    @retry(stop=stop_after_attempt(3),
+    @retry(stop=stop_after_attempt(5),
            retry=retry_if_not_exception_type(LowProxyScoreException),
            wait=wait_random(5, 7),
            reraise=True)
