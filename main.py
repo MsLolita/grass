@@ -23,6 +23,7 @@ async def worker_task(_id, account: str, proxy: str = None):
         email, password = consumables
 
     grass = None
+    sleep_time = 20
 
     await asyncio.sleep(random.uniform(1, 1.5) * _id)
     logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
@@ -41,11 +42,11 @@ async def worker_task(_id, account: str, proxy: str = None):
             logger.info(f"{_id} | {e}")
             break
         except ProxyScoreNotFoundException as e:
-            logger.info(e)
-            break
+            logger.info(f"Waiting {sleep_time} minutes. {e}")
+            await asyncio.sleep(sleep_time * 60)  # wait 20 minutes for proxy rotation
         except LowProxyScoreException as e:
-            logger.info(e)
-            break
+            logger.info(f"Waiting {sleep_time} minutes. {e}")
+            await asyncio.sleep(sleep_time * 60)  # wait 20 minutes for proxy rotation
         except aiohttp.ClientError as e:
             log_msg = str(e) if "</html>" not in str(e) else "Html page response, 504"
             logger.error(f"{_id} | Server not responding | Error: {log_msg}")

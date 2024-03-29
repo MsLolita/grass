@@ -66,7 +66,7 @@ class GrassRest:
         logger.info(f"{self.email} | Account created!")
 
         with open("logs/new_accounts.txt", "a", encoding="utf-8") as f:
-            f.write(f"{self.email}:{self.username}:{self.password}\n")
+            f.write(f"{self.email}:{self.password}:{self.username}\n")
 
         return await response.json()
 
