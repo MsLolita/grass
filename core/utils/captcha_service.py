@@ -29,7 +29,8 @@ class CaptchaService:
         for service, api_key in self.SERVICE_API_MAP.items():
             if api_key:
                 return {"solving_site": service, "api_key": api_key}
-        raise ValueError("No valid captcha solving service API key found")
+        exit("No valid captcha solving service API key found")
+        # raise ValueError("No valid captcha solving service API key found")
 
     async def get_captcha_token_async(self):
         return await asyncio.to_thread(self.get_captcha_token)
