@@ -151,7 +151,7 @@ class GrassRest(BaseClient):
 
         captcha_service = CaptchaService()
         if captcha_service.parse_captcha_type(exit_on_fail=False):
-            json_data['recaptchaToken'] = await captcha_service.get_captcha_token()
+            json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
