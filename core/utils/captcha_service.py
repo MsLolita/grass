@@ -21,15 +21,16 @@ class CaptchaService:
         }
 
     def get_captcha_token(self):
-        captcha_config = self._parse_captcha_type()
+        captcha_config = self.parse_captcha_type()
         solver = captchatools.new_harvester(**captcha_config, **CAPTCHA_PARAMS)
         return solver.get_token()
 
-    def _parse_captcha_type(self):
+    def parse_captcha_type(self, exit_on_fail: bool = True):
         for service, api_key in self.SERVICE_API_MAP.items():
             if api_key:
                 return {"solving_site": service, "api_key": api_key}
-        exit("No valid captcha solving service API key found")
+        if exit_on_fail:
+            exit("No valid captcha solving service API key found")
         # raise ValueError("No valid captcha solving service API key found")
 
     async def get_captcha_token_async(self):

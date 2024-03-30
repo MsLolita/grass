@@ -27,6 +27,7 @@ class Grass(GrassWs, GrassRest):
         # logger.info(f"{self.id} | {self.email} | Starting...")
 
         user_id = await self.enter_account()
+
         browser_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, self.proxy or ""))
 
         await self.run(browser_id, user_id)

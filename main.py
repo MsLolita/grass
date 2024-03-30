@@ -25,16 +25,19 @@ async def worker_task(_id, account: str, proxy: str = None):
     grass = None
     sleep_time = 20
 
-    await asyncio.sleep(random.uniform(1, 1.5) * _id)
-    logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-
     for _ in range(1000):
         try:
             grass = Grass(_id, email, password, proxy)
 
             if REGISTER_ACCOUNT_ONLY:
+                await asyncio.sleep(random.uniform(0.1, 0.2) * _id)
+                logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+
                 await grass.create_account()
             else:
+                await asyncio.sleep(random.uniform(0.5, 1) * _id)
+                logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+
                 await grass.start()
 
             return True

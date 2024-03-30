@@ -7,41 +7,17 @@ from tenacity import retry, stop_after_attempt
 from core.utils import logger
 from core.utils.captcha_service import CaptchaService
 from core.utils.generate.person import Person
+from core.utils.session import BaseClient
+from data.config import REF_CODE
 
 
-class GrassRest:
+class GrassRest(BaseClient):
     def __init__(self, email: str, password: str, user_agent: str = None, proxy: str = None):
+        super().__init__(user_agent, proxy)
         self.email = email
         self.password = password
-        self.user_agent = user_agent
-        self.proxy = proxy
 
-        self.website_headers = {
-            'authority': 'api.getgrass.io',
-            'accept': 'application/json, text/plain, */*',
-            'accept-language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
-            'content-type': 'application/json',
-            'origin': 'https://app.getgrass.io',
-            'referer': 'https://app.getgrass.io/',
-            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site',
-            'user-agent': self.user_agent,
-        }
-
-        self.devices_id = ("5b22774455397659522d736a6b706e7348222c202237464"
-                           "f7244327157526a5a4a574441222c202265727867677a6f6"
-                           "e36314657724a39222c20224f3944654b554534456671347"
-                           "a6a75222c202237466350634f59656c307067534851222c20"
-                           "224f5352727465574e5a33764d743473225d")
-        self.session = None
-        self.ip = None
-        self.username = None
-
-    @retry(stop=stop_after_attempt(3),
+    @retry(stop=stop_after_attempt(7),
            before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
            reraise=True)
     async def create_account(self):
@@ -51,10 +27,11 @@ class GrassRest:
             'app': 'dashboard',
         }
 
-        response = await self.session.post(url, headers=self.website_headers, json=await self.get_json_params(params),
+        response = await self.session.post(url, headers=self.website_headers, json=await self.get_json_params(params,
+                                                                                                              REF_CODE),
                                            proxy=self.proxy)
 
-        if response.status != 200:
+        if response.status != 200 or "error" in await response.text():
             if "Email Already Registered" in await response.text():
                 logger.info(f"{self.email} | Email already registered!")
                 return
@@ -76,6 +53,16 @@ class GrassRest:
         self.website_headers['Authorization'] = res_json['result']['data']['accessToken']
 
         return res_json['result']['data']['userId']
+
+    @retry(stop=stop_after_attempt(9),
+           before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
+           reraise=True)
+    async def retrieve_user(self):
+        url = 'https://api.getgrass.io/retrieveUser'
+
+        response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
+
+        return await response.json()
 
     @retry(stop=stop_after_attempt(3),
            before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
@@ -142,24 +129,35 @@ class GrassRest:
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self, params, referral: str = "erxggzon61FWrJ9", role_stable: str = "726566657272616c"):
+    async def get_json_params(self, params, user_referral: str = "erxggzon61FWrJ9", main_referral: str = "erxggzon61FWrJ9",  role_stable: str = "726566657272616c"):
         self.username = Person().username
+
+        referrals = {
+            "my_refferral": main_referral,
+            "user_refferal": user_referral
+        }
 
         json_data = {
             'email': self.email,
             'password': self.password,
             'role': 'USER',
-            'referral': referral,
+            'referral': random.choice(list(referrals.items())),
             'username': self.username,
-            'recaptchaToken': await CaptchaService().get_captcha_token_async(),
+            'recaptchaToken': "",
             'listIds': [
                 15,
             ],
         }
 
+        captcha_service = CaptchaService()
+        if captcha_service.parse_captcha_type(exit_on_fail=False):
+            json_data['recaptchaToken'] = await captcha_service.get_captcha_token()
+
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
-            random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))))
+            random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
+                          referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
+                           random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
 
         return json_data
 
