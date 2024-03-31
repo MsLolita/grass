@@ -21,6 +21,8 @@ class GrassRest(BaseClient):
         self.email = email
         self.password = password
 
+        self.id = None
+
     @retry(stop=stop_after_attempt(7),
            before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
            reraise=True)
@@ -40,7 +42,7 @@ class GrassRest(BaseClient):
                 logger.info(f"{self.email} | Email already registered!")
                 return
             elif "Gateway" in await response.text():
-                raise aiohttp.ClientConnectionError(f"Create acc response: | html 504 gateway error")
+                raise aiohttp.ClientConnectionError(f"{self.id}Create acc response: | html 504 gateway error")
 
             raise aiohttp.ClientConnectionError(f"Create acc response: | {await response.text()}")
 
@@ -69,7 +71,7 @@ class GrassRest(BaseClient):
         return await response.json()
 
     @retry(stop=stop_after_attempt(3),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
+           before_sleep=lambda retry_state, **kwargs: logger.info(retry_state.outcome.exception()),
            reraise=True)
     async def login(self):
         url = 'https://api.getgrass.io/login'
@@ -81,9 +83,10 @@ class GrassRest(BaseClient):
 
         response = await self.session.post(url, headers=self.website_headers, data=json.dumps(json_data),
                                            proxy=self.proxy)
-        logger.debug(f"login | Response: {await response.text()}")
+        logger.debug(f"{self.id} | Login response: {await response.text()}")
+
         if response.status != 200:
-            raise aiohttp.ClientConnectionError(f"login | {await response.text()}")
+            raise aiohttp.ClientConnectionError(f"{self.id} | Retrying... Login error: {await response.text()}")
 
         return await response.json()
 
