@@ -1,8 +1,13 @@
 MIN_PROXY_SCORE = 50
 
 # REGISTER PARAMETRS ONLY
-REGISTER_ACCOUNT_ONLY = True
+REGISTER_ACCOUNT_ONLY = False
+REGISTER_DELAY = (3, 7)
 THREADS = 2  # for register account only
+
+
+
+
 
 # NOT NECESSARY, CAN REGISTER WITHOUT CAPTCHAS
 # Put api key of ONE captcha service below
@@ -20,7 +25,6 @@ CAPTCHA_PARAMS = {
     "captcha_url": "https://app.getgrass.io/register"
 }
 
-REF_CODE = ""
 ########################################
 
 ACCOUNTS_FILE_PATH = "data/accounts.txt"
