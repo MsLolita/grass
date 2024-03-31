@@ -15,6 +15,7 @@ class GrassWs:
 
         self.session = None
         self.websocket = None
+        self.id = None
 
     async def connect(self):
         uri = "wss://proxy.wynd.network:4444/"
