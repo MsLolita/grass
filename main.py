@@ -10,7 +10,7 @@ from core.autoreger import AutoReger
 from core.utils import logger
 from core.utils.exception import LowProxyScoreException, ProxyScoreNotFoundException, ProxyForbiddenException
 from core.utils.generate.person import Person
-from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS
+from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY
 
 
 async def worker_task(_id, account: str, proxy: str = None):
@@ -30,7 +30,7 @@ async def worker_task(_id, account: str, proxy: str = None):
             grass = Grass(_id, email, password, proxy)
 
             if REGISTER_ACCOUNT_ONLY:
-                await asyncio.sleep(random.uniform(0.1, 0.2) * _id)
+                await asyncio.sleep(random.uniform(*REGISTER_DELAY))
                 logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
                 await grass.create_account()

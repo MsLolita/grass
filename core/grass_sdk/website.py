@@ -8,7 +8,11 @@ from core.utils import logger
 from core.utils.captcha_service import CaptchaService
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
-from data.config import REF_CODE
+
+try:
+    from data.config import REF_CODE
+except ImportError:
+    REF_CODE = ""
 
 
 class GrassRest(BaseClient):
