@@ -2,6 +2,7 @@ import random
 import traceback
 from asyncio import Semaphore, sleep, create_task, wait
 from itertools import zip_longest
+from data.config import REGISTER_ACCOUNT_ONLY
 
 from core.utils import logger, file_to_list, str_to_file
 
@@ -45,7 +46,8 @@ class AutoReger:
             return
 
         # Filter out accounts that already exist in success logs
-        self.accounts = [acc for acc in self.accounts if acc[1] not in self.success_accounts]
+        if REGISTER_ACCOUNT_ONLY:
+            self.accounts = [acc for acc in self.accounts if acc[1] not in self.success_accounts]
 
         logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
 
