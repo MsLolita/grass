@@ -2,6 +2,7 @@ import random
 import traceback
 from asyncio import Semaphore, sleep, create_task, wait
 from itertools import zip_longest
+from data.config import REGISTER_ACCOUNT_ONLY
 
 from core.utils import logger, file_to_list, str_to_file
 
@@ -9,10 +10,18 @@ from core.utils import logger, file_to_list, str_to_file
 class AutoReger:
     def __init__(self, accounts: list):
         self.accounts = accounts
-        # random.shuffle(self.accounts)
+        self.success_accounts = self.load_success_accounts()
         self.success = 0
         self.semaphore = None
         self.delay = None
+
+    @staticmethod
+    def load_success_accounts():
+        try:
+            with open("./logs/success.txt", "r") as file:
+                return set(line.split('|')[1] for line in file)
+        except FileNotFoundError:
+            return set()
 
     @classmethod
     def get_accounts(cls, *file_names: str, amount: int = None, auto_creation: tuple = None, with_id: bool = False):
@@ -35,6 +44,10 @@ class AutoReger:
         if not self.accounts or not self.accounts[0]:
             logger.warning("No accounts found :(")
             return
+
+        # Filter out accounts that already exist in success logs
+        if REGISTER_ACCOUNT_ONLY:
+            self.accounts = [acc for acc in self.accounts if acc[1] not in self.success_accounts]
 
         logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
 
