@@ -7,6 +7,8 @@ Discover the latest `<crypto/>` moves in my Telegram Channel:
 
 Cheapest proxies and servers which fits for grass [here](https://teletype.in/@web3enjoyer/4a2G9NuHssy).
 
+![image](https://github.com/MsLolita/grass/assets/58307006/9bb115d3-18f0-4a7d-8450-b7463a0b33d9)
+
 
 Bot can be used to create accounts and farm points on [grass.io](https://app.getgrass.io/register/?referralCode=erxggzon61FWrJ9)
 ## Quick Start 📚
@@ -17,9 +19,9 @@ Bot can be used to create accounts and farm points on [grass.io](https://app.get
 
 1. CREATE ACCOUNTS:
  - In `data/config.py` put `REGISTER_ACCOUNT_ONLY = True`
- - Don't forget to put captcha service api-key in `data/config.py`! 
  - Provide emails and passwords (OPTIONAL) and proxies to register accounts as below!
-![image](https://github.com/MsLolita/grass/assets/58307006/67740c9b-07d6-4f78-a87d-27b09c0303e8)
+
+  ![image](https://github.com/MsLolita/grass/assets/58307006/67740c9b-07d6-4f78-a87d-27b09c0303e8)
 
 2. FARM POINTS:
  - in `data/config.py` put `REGISTER_ACCOUNT_ONLY = False`
