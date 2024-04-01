@@ -22,7 +22,7 @@ def bot_info(name: str = ""):
 
     if sys.platform == 'win32':
         ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
-    print("EnJoYeR's <crypto/> moves: https://t.me/+tdC-PXRzhnczNDli\n Donate here: 0x000007c73a94f8582ef95396918dcd04f806cdd8")
+    print("EnJoYeR's <crypto/> moves: https://t.me/+tdC-PXRzhnczNDli\nDonate here: 0x000007c73a94f8582ef95396918dcd04f806cdd8")
 
 
 async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
