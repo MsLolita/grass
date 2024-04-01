@@ -5,7 +5,7 @@ import aiohttp
 from tenacity import retry, stop_after_attempt
 
 from core.utils import logger
-from core.utils.captcha_service import CaptchaService
+# from core.utils.captcha_service import CaptchaService
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
 
@@ -24,7 +24,7 @@ class GrassRest(BaseClient):
         self.id = None
 
     @retry(stop=stop_after_attempt(7),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
+           before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()} | Create Account Retrying... "),
            reraise=True)
     async def create_account(self):
         url = 'https://api.getgrass.io/register'
@@ -42,7 +42,7 @@ class GrassRest(BaseClient):
                 logger.info(f"{self.email} | Email already registered!")
                 return
             elif "Gateway" in await response.text():
-                raise aiohttp.ClientConnectionError(f"{self.id}Create acc response: | html 504 gateway error")
+                raise aiohttp.ClientConnectionError(f"{self.id} | Create acc response: | html 504 gateway error")
 
             raise aiohttp.ClientConnectionError(f"Create acc response: | {await response.text()}")
 
@@ -54,7 +54,7 @@ class GrassRest(BaseClient):
         return await response.json()
 
     async def enter_account(self):
-        res_json = await self.login()
+        res_json = await self.handle_login()
 
         self.website_headers['Authorization'] = res_json['result']['data']['accessToken']
 
@@ -70,9 +70,35 @@ class GrassRest(BaseClient):
 
         return await response.json()
 
-    @retry(stop=stop_after_attempt(3),
-           before_sleep=lambda retry_state, **kwargs: logger.info(retry_state.outcome.exception()),
+    @retry(stop=stop_after_attempt(9),
+           before_sleep=lambda retry_state, **kwargs: logger.info(f"Get Points retrying..."),
            reraise=True)
+    async def get_points(self):
+        url = 'https://api.getgrass.io/users/earnings/epochs'
+
+        response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
+
+        logger.debug(f"{self.id} | Get Points response: {await response.text()}")
+
+        res_json = await response.json()
+        points = res_json.get('data', {}).get('epochEarnings', [{}])[0].get('totalCumulativePoints')
+
+        if points is not None:
+            return points
+        elif points := res_json.get('error', {}).get('message'):
+            return points
+        else:
+            return "Can't get points."
+
+    async def handle_login(self):
+        handler = retry(
+            stop=stop_after_attempt(3),
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying..."),
+            reraise=True
+        )
+
+        return await handler(self.login)()
+
     async def login(self):
         url = 'https://api.getgrass.io/login'
 
@@ -86,7 +112,7 @@ class GrassRest(BaseClient):
         logger.debug(f"{self.id} | Login response: {await response.text()}")
 
         if response.status != 200:
-            raise aiohttp.ClientConnectionError(f"{self.id} | Retrying... Login error: {await response.text()}")
+            raise aiohttp.ClientConnectionError(f"{self.id} | Login response: | {await response.text()}")
 
         return await response.json()
 
@@ -117,9 +143,16 @@ class GrassRest(BaseClient):
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
         return await response.json()
 
-    @retry(stop=stop_after_attempt(10),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying to get proxy score... "
-                                                                  f"{retry_state.outcome.exception()}"), reraise=True)
+    async def get_proxy_score_by_device_id_handler(self):
+        handler = retry(
+            stop=stop_after_attempt(3),
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to get proxy score... "
+                                                                   f"Continue..."),
+            reraise=True
+        )
+
+        return await handler(self.get_proxy_score_by_device_id)()
+
     async def get_proxy_score_by_device_id(self):
         res_json = await self.get_devices_info()
 
@@ -127,8 +160,8 @@ class GrassRest(BaseClient):
             return
 
         devices = res_json['data']['currentDeviceData']
-        self.ip = await self.get_ip()
-
+        await self.update_ip()
+        print(self.ip)
         return next((device['final_score'] for device in devices
                      if device['device_ip'] == self.ip), None)
 
@@ -156,9 +189,9 @@ class GrassRest(BaseClient):
             ],
         }
 
-        captcha_service = CaptchaService()
-        if captcha_service.parse_captcha_type(exit_on_fail=False):
-            json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
+        # captcha_service = CaptchaService()
+        # if captcha_service.parse_captcha_type(exit_on_fail=False):
+        #     json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
@@ -167,6 +200,9 @@ class GrassRest(BaseClient):
                            random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
 
         return json_data
+
+    async def update_ip(self):
+        self.ip = await self.get_ip()
 
     async def get_ip(self):
         return await (await self.session.get('https://api.ipify.org', proxy=self.proxy)).text()

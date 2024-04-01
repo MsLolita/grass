@@ -5,25 +5,7 @@ REGISTER_ACCOUNT_ONLY = False
 REGISTER_DELAY = (3, 7)
 THREADS = 2  # for register account only
 
-
-
-
-
-# NOT NECESSARY, CAN REGISTER WITHOUT CAPTCHAS
-# Put api key of ONE captcha service below
-TWO_CAPTCHA_API_KEY = ""
-ANTICAPTCHA_API_KEY = ""
-CAPMONSTER_API_KEY = ""
-CAPSOLVER_API_KEY = ""
-CAPTCHAAI_API_KEY = ""
-
-# Captcha params, left empty
-CAPTCHA_PARAMS = {
-    "captcha_type": "v2",
-    "invisible_captcha": False,
-    "sitekey": "6LdyCj0pAAAAAFvvSTRHYOzddUPMPcH232u7a9e0",
-    "captcha_url": "https://app.getgrass.io/register"
-}
+CHECK_POINTS = False  # only check points
 
 ########################################
 

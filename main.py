@@ -1,19 +1,31 @@
 import asyncio
+import ctypes
 import random
 import sys
 import traceback
 
 import aiohttp
+from art import tprint
+from better_proxy import Proxy
 
 from core import Grass
 from core.autoreger import AutoReger
-from core.utils import logger
+from core.utils import logger, file_to_list
+from core.utils.accounts_db import AccountsDB
 from core.utils.exception import LowProxyScoreException, ProxyScoreNotFoundException, ProxyForbiddenException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY
 
 
-async def worker_task(_id, account: str, proxy: str = None):
+def bot_info(name: str = ""):
+    tprint(name)
+
+    if sys.platform == 'win32':
+        ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
+    print("EnJoYeR's <crypto/> moves: https://t.me/+tdC-PXRzhnczNDli\n Donate here: 0x000007c73a94f8582ef95396918dcd04f806cdd8")
+
+
+async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
     consumables = account.split(":")[:2]
 
     if len(consumables) == 1:
@@ -23,11 +35,10 @@ async def worker_task(_id, account: str, proxy: str = None):
         email, password = consumables
 
     grass = None
-    sleep_time = 20
 
-    for _ in range(1000):
+    for _ in range(3):
         try:
-            grass = Grass(_id, email, password, proxy)
+            grass = Grass(_id, email, password, proxy, db)
 
             if REGISTER_ACCOUNT_ONLY:
                 await asyncio.sleep(random.uniform(*REGISTER_DELAY))
@@ -41,19 +52,6 @@ async def worker_task(_id, account: str, proxy: str = None):
                 await grass.start()
 
             return True
-        except ProxyForbiddenException as e:
-            logger.info(f"{_id} | {e}")
-            break
-        except ProxyScoreNotFoundException as e:
-            logger.info(f"Waiting {sleep_time} minutes. {e}")
-            await asyncio.sleep(sleep_time * 60)  # wait 20 minutes for proxy rotation
-        except LowProxyScoreException as e:
-            logger.info(f"Waiting {sleep_time} minutes. {e}")
-            await asyncio.sleep(sleep_time * 60)  # wait 20 minutes for proxy rotation
-        except aiohttp.ClientError as e:
-            log_msg = str(e) if "</html>" not in str(e) else "Html page response, 504"
-            logger.error(f"{_id} | Server not responding | Error: {log_msg}")
-            await asyncio.sleep(5)
         except Exception as e:
             logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
         finally:
@@ -62,24 +60,37 @@ async def worker_task(_id, account: str, proxy: str = None):
 
 
 async def main():
+    accounts = file_to_list(ACCOUNTS_FILE_PATH)
+    proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
+
+    db = AccountsDB('data/proxies_stats.db')
+    await db.connect()
+    await db.delete_all_proxies()
+    await db.push_proxies(proxies[len(accounts):])
+
     autoreger = AutoReger.get_accounts(
-        ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH,
-        with_id=True
+        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH),
+        with_id=True,
+        static_extra=(db, )
     )
 
     if REGISTER_ACCOUNT_ONLY:
-        msg = "Register account only mode!"
+        msg = "__REGISTER__ MODE"
         threads = THREADS
     else:
-        msg = "Mining mode ON"
+        msg = "__MINING__ MODE"
         threads = len(autoreger.accounts)
 
-    logger.info(f"Threads: {threads} | {msg} ")
+    logger.info(msg)
 
     await autoreger.start(worker_task, threads)
 
+    await db.close_connection()
+
 
 if __name__ == "__main__":
+    bot_info("GRASS_AUTO")
+
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
         loop = asyncio.ProactorEventLoop()

@@ -10,21 +10,14 @@ from core.utils import logger, file_to_list, str_to_file
 class AutoReger:
     def __init__(self, accounts: list):
         self.accounts = accounts
-        self.success_accounts = self.load_success_accounts()
+
         self.success = 0
         self.semaphore = None
         self.delay = None
 
-    @staticmethod
-    def load_success_accounts():
-        try:
-            with open("./logs/success.txt", "r") as file:
-                return set(line.split('|')[1] for line in file)
-        except FileNotFoundError:
-            return set()
-
     @classmethod
-    def get_accounts(cls, *file_names: str, amount: int = None, auto_creation: tuple = None, with_id: bool = False):
+    def get_accounts(cls, file_names: tuple, amount: int = None, auto_creation: tuple = None, with_id: bool = False,
+                     static_extra: tuple = None):
         consumables = [file_to_list(file_name) for file_name in file_names]
 
         if amount and consumables[0]:
@@ -33,10 +26,14 @@ class AutoReger:
             for creation_func in auto_creation:
                 consumables.append([creation_func() for _ in range(amount)])
 
-        consumables[1] = consumables[1][:len(consumables[0])]
+        acc_len = len(consumables[0])
+        consumables[1] = consumables[1][:acc_len]
 
         if with_id:
-            consumables.insert(0, (list(range(1, len(consumables[0]) + 1))))
+            consumables.insert(0, (list(range(1, acc_len + 1))))
+        if static_extra:
+            for extra in static_extra:
+                consumables.append([extra] * acc_len)
 
         return cls(list(zip_longest(*consumables)))
 
@@ -44,10 +41,6 @@ class AutoReger:
         if not self.accounts or not self.accounts[0]:
             logger.warning("No accounts found :(")
             return
-
-        # Filter out accounts that already exist in success logs
-        if REGISTER_ACCOUNT_ONLY:
-            self.accounts = [acc for acc in self.accounts if acc[1] not in self.success_accounts]
 
         logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
 

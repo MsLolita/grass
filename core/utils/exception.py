@@ -1,15 +1,25 @@
+import aiohttp
+
 
 class WebsocketClosedException(Exception):
     pass
 
 
-class LowProxyScoreException(Exception):
+class ProxyError(Exception):
     pass
 
 
-class ProxyScoreNotFoundException(Exception):
+class LowProxyScoreException(ProxyError):
     pass
 
 
-class ProxyForbiddenException(Exception):
+class ProxyScoreNotFoundException(ProxyError):
+    pass
+
+
+class ProxyForbiddenException(ProxyError):
+    pass
+
+
+class ConnectionException(aiohttp.ClientConnectionError):
     pass
