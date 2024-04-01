@@ -161,7 +161,7 @@ class GrassRest(BaseClient):
 
         devices = res_json['data']['currentDeviceData']
         await self.update_ip()
-        print(self.ip)
+
         return next((device['final_score'] for device in devices
                      if device['device_ip'] == self.ip), None)
 
