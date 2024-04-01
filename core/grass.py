@@ -46,7 +46,7 @@ class Grass(GrassWs, GrassRest):
             except ProxyError:
                 msg = "Low proxy score"
             except aiohttp.ClientError as e:
-                msg = str(e.args[0]) if "</html>" not in str(e) else "Html page response, 504"
+                msg = f"{str(e.args[0])[:20]}..." if "</html>" not in str(e) else "Html page response, 504"
             else:
                 msg = ""
 
