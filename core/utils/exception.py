@@ -23,3 +23,7 @@ class ProxyForbiddenException(ProxyError):
 
 class ConnectionException(aiohttp.ClientConnectionError):
     pass
+
+
+class LoginException(Exception):
+    pass

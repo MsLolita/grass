@@ -2,9 +2,10 @@ import json
 import random
 
 import aiohttp
-from tenacity import retry, stop_after_attempt
+from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
+from core.utils.exception import LoginException
 # from core.utils.captcha_service import CaptchaService
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
@@ -70,9 +71,17 @@ class GrassRest(BaseClient):
 
         return await response.json()
 
-    @retry(stop=stop_after_attempt(9),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"Get Points retrying..."),
-           reraise=True)
+    async def get_points_handler(self):
+        handler = retry(
+            stop=stop_after_attempt(3),
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to get points... "
+                                                                   f"Continue..."),
+            wait=wait_random(5, 7),
+            reraise=True
+        )
+
+        return await handler(self.get_points)()
+
     async def get_points(self):
         url = 'https://api.getgrass.io/users/earnings/epochs'
 
@@ -93,6 +102,7 @@ class GrassRest(BaseClient):
     async def handle_login(self):
         handler = retry(
             stop=stop_after_attempt(3),
+            retry=retry_if_not_exception_type(LoginException),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying..."),
             reraise=True
         )
@@ -110,6 +120,11 @@ class GrassRest(BaseClient):
         response = await self.session.post(url, headers=self.website_headers, data=json.dumps(json_data),
                                            proxy=self.proxy)
         logger.debug(f"{self.id} | Login response: {await response.text()}")
+
+        res_json = await response.json()
+
+        if res_json.get("error") is not None:
+            raise LoginException(f"{self.id} | Login stopped: {res_json['error']['message']}")
 
         if response.status != 200:
             raise aiohttp.ClientConnectionError(f"{self.id} | Login response: | {await response.text()}")

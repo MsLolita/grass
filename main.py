@@ -12,7 +12,8 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
-from core.utils.exception import LowProxyScoreException, ProxyScoreNotFoundException, ProxyForbiddenException
+from core.utils.exception import LowProxyScoreException, ProxyScoreNotFoundException, ProxyForbiddenException, \
+    LoginException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY
 
@@ -51,6 +52,9 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
                 await grass.start()
 
+            return True
+        except LoginException as e:
+            logger.warning(e)
             return True
         except Exception as e:
             logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")

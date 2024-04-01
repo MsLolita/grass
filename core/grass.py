@@ -71,7 +71,7 @@ class Grass(GrassWs, GrassRest):
                     logger.info(f"{self.id} | Mined grass.")
 
                     if CHECK_POINTS and not (i % 30):
-                        points = await self.get_points()
+                        points = await self.get_points_handler()
                         logger.info(f"{self.id} | Total points: {points}")
 
                     await asyncio.sleep(19.9)
@@ -95,7 +95,7 @@ class Grass(GrassWs, GrassRest):
 
     @retry(stop=stop_after_attempt(10),
            retry=retry_if_not_exception_type(LowProxyScoreException),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
+           before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying score ... {retry_state.outcome.exception()}"),
            wait=wait_random(5, 7),
            reraise=True)
     async def handle_proxy_score(self, min_score: int):
