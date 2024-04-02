@@ -1,4 +1,5 @@
 import asyncio
+import random
 import uuid
 from typing import List, Optional
 
@@ -11,12 +12,13 @@ from .grass_sdk.extension import GrassWs
 from .grass_sdk.website import GrassRest
 from .utils import logger
 from .utils.accounts_db import AccountsDB
+from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
-    ProxyForbiddenException, ProxyError
+    ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException
 from better_proxy import Proxy
 
 
-class Grass(GrassWs, GrassRest):
+class Grass(GrassWs, GrassRest, FailureCounter):
     def __init__(self, _id: int, email: str, password: str, proxy: str = None, db: AccountsDB = None):
         self.proxy = Proxy.from_str(proxy).as_url if proxy else None
         super(GrassWs, self).__init__(email=email, password=password, user_agent=UserAgent().random, proxy=self.proxy)
@@ -28,10 +30,13 @@ class Grass(GrassWs, GrassRest):
         self.session: aiohttp.ClientSession = aiohttp.ClientSession(trust_env=True,
                                                                     connector=aiohttp.TCPConnector(ssl=False))
 
-        self.proxies: List[str] = [self.proxy]
-        self.is_new_proxies_used: bool = False
+        self.proxies: List[str] = []
+        self.is_extra_proxies_left: bool = True
+
+        self.fail_count = 0
 
     async def start(self):
+        self.proxies = await self.db.get_proxies_by_email(self.email)
         # logger.info(f"{self.id} | {self.email} | Starting...")
         while True:
             try:
@@ -45,13 +50,28 @@ class Grass(GrassWs, GrassRest):
                 msg = "Proxy forbidden"
             except ProxyError:
                 msg = "Low proxy score"
+            except WebsocketConnectionFailedError:
+                msg = "Websocket connection failed"
             except aiohttp.ClientError as e:
-                msg = f"{str(e.args[0])[:20]}..." if "</html>" not in str(e) else "Html page response, 504"
+                msg = f"{str(e.args[0])[:30]}..." if "</html>" not in str(e) else "Html page response, 504"
+            except FailureLimitReachedException as e:
+                msg = "Failure limit reached"
+                self.fail_count = 5
             else:
                 msg = ""
 
+            sleep_time = random.randint(20, 30) # * 60
+
+            await self.failure_handler(
+                is_raise=False,
+                msg=f"{self.id} | Sleeping for {int(sleep_time)} seconds... Too many errors. Retrying...",
+                sleep_time=sleep_time
+            )
+
             await self.change_proxy()
-            logger.info(f"{self.id} | Changed Proxy. {msg}. Retrying...")
+            logger.info(f"{self.id} | Changed proxy to {self.proxy}. {msg}. Retrying...")
+
+            await asyncio.sleep(random.uniform(5, 10))
 
     async def run(self, browser_id: str, user_id: str):
         while True:
@@ -64,15 +84,17 @@ class Grass(GrassWs, GrassRest):
 
                     await self.handle_proxy_score(MIN_PROXY_SCORE)
 
-                for i in range(999999):
+                for i in range(999999999):
                     await self.send_ping()
                     await self.send_pong()
 
                     logger.info(f"{self.id} | Mined grass.")
 
-                    if CHECK_POINTS and not (i % 30):
+                    if CHECK_POINTS and not (i % 100):
                         points = await self.get_points_handler()
                         logger.info(f"{self.id} | Total points: {points}")
+
+                    self.fail_reset()
 
                     await asyncio.sleep(19.9)
             except WebsocketClosedException as e:
@@ -82,20 +104,24 @@ class Grass(GrassWs, GrassRest):
             except TypeError as e:
                 logger.info(f"{self.id} | Type error: {e}. Reconnecting...")
 
-            await asyncio.sleep(1)
+            await self.failure_handler(limit=3)
 
-    @retry(stop=stop_after_attempt(30),
+            await asyncio.sleep(2)
+
+    @retry(stop=stop_after_attempt(13),
            retry=(retry_if_exception_type(ConnectionError) | retry_if_not_exception_type(ProxyForbiddenException)),
-           wait=wait_random(0.5, 1),
+           retry_error_callback=lambda retry_state:
+           raise_error(WebsocketConnectionFailedError(f"{retry_state.outcome.exception()}")),
+           wait=wait_random(1, 2),
            reraise=True)
     async def connection_handler(self):
         logger.info(f"{self.id} | Connecting...")
         await self.connect()
         logger.info(f"{self.id} | Connected")
 
-    @retry(stop=stop_after_attempt(10),
+    @retry(stop=stop_after_attempt(5),
            retry=retry_if_not_exception_type(LowProxyScoreException),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying score ... {retry_state.outcome.exception()}"),
+           before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
            wait=wait_random(5, 7),
            reraise=True)
     async def handle_proxy_score(self, min_score: int):
@@ -108,24 +134,25 @@ class Grass(GrassWs, GrassRest):
             logger.success(f"{self.id} | Proxy score: {self.proxy_score}")
             return True
         else:
-            raise LowProxyScoreException(f"{self.id} | Too low proxy score: {proxy_score} for {self.proxy}. Exit...")
+            raise LowProxyScoreException(f"{self.id} | Too low proxy score: {proxy_score} for {self.proxy}. Retrying...")
 
     async def change_proxy(self):
         self.proxy = await self.get_new_proxy()
 
     async def get_new_proxy(self):
-        if self.is_new_proxies_used:
-            pass
-        elif (proxy := await self.db.get_new()) is not None:
-            if proxy not in self.proxies:
-                if email := await self.db.proxies_exist(proxy):
-                    if self.email == email:
+        while self.is_extra_proxies_left:
+            if (proxy := await self.db.get_new_from_extra_proxies()) is not None:
+                if proxy not in self.proxies:
+                    if email := await self.db.proxies_exist(proxy):
+                        if self.email == email:
+                            self.proxies.insert(0, proxy)
+                            break
+                    else:
+                        await self.db.add_account(self.email, proxy)
                         self.proxies.insert(0, proxy)
-                else:
-                    await self.db.add_proxy(self.email, proxy)
-                    self.proxies.insert(0, proxy)
-        else:
-            self.is_new_proxies_used = True
+                        break
+            else:
+                self.is_extra_proxies_left = False
 
         return self.next_proxy()
 

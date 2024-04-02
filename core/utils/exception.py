@@ -27,3 +27,11 @@ class ConnectionException(aiohttp.ClientConnectionError):
 
 class LoginException(Exception):
     pass
+
+
+class WebsocketConnectionFailedError(Exception):
+    pass
+
+
+class FailureLimitReachedException(Exception):
+    pass

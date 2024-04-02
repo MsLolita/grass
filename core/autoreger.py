@@ -2,7 +2,6 @@ import random
 import traceback
 from asyncio import Semaphore, sleep, create_task, wait
 from itertools import zip_longest
-from data.config import REGISTER_ACCOUNT_ONLY
 
 from core.utils import logger, file_to_list, str_to_file
 
@@ -35,13 +34,15 @@ class AutoReger:
             for extra in static_extra:
                 consumables.append([extra] * acc_len)
 
-        return cls(list(zip_longest(*consumables)))
+        accounts = list(zip_longest(*consumables))
 
-    async def start(self, worker_func: callable, threads: int = 1, delay: tuple = (0, 0)):
-        if not self.accounts or not self.accounts[0]:
+        if not accounts or not accounts[0]:
             logger.warning("No accounts found :(")
             return
+        else:
+            return cls(accounts)
 
+    async def start(self, worker_func: callable, threads: int = 1, delay: tuple = (0, 0)):
         logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
 
         self.semaphore = Semaphore(threads)

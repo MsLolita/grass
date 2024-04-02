@@ -4,7 +4,6 @@ import random
 import sys
 import traceback
 
-import aiohttp
 from art import tprint
 from better_proxy import Proxy
 
@@ -12,8 +11,7 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
-from core.utils.exception import LowProxyScoreException, ProxyScoreNotFoundException, ProxyForbiddenException, \
-    LoginException
+from core.utils.exception import LoginException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY
 
@@ -69,8 +67,18 @@ async def main():
 
     db = AccountsDB('data/proxies_stats.db')
     await db.connect()
-    await db.delete_all_proxies()
-    await db.push_proxies(proxies[len(accounts):])
+
+    for i, account in enumerate(accounts):
+        account = account.split(":")[0]
+        proxy = proxies[i] if len(proxies) > i else None
+
+        if await db.proxies_exist(proxy) or not proxy:
+            continue
+
+        await db.add_account(account, proxy)
+
+    await db.delete_all_from_extra_proxies()
+    await db.push_extra_proxies(proxies[len(accounts):])
 
     autoreger = AutoReger.get_accounts(
         (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH),

@@ -6,7 +6,6 @@ from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_except
 
 from core.utils import logger
 from core.utils.exception import LoginException
-# from core.utils.captcha_service import CaptchaService
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
 
@@ -24,9 +23,17 @@ class GrassRest(BaseClient):
 
         self.id = None
 
-    @retry(stop=stop_after_attempt(7),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()} | Create Account Retrying... "),
-           reraise=True)
+    async def create_account_handler(self):
+        handler = retry(
+            stop=stop_after_attempt(7),
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Create Account Retrying...  | "
+                                                                   f"{retry_state.outcome.exception().message} "),
+            wait=wait_random(5, 8),
+            reraise=True
+        )
+
+        return await handler(self.create_account)()
+
     async def create_account(self):
         url = 'https://api.getgrass.io/register'
 
@@ -61,7 +68,7 @@ class GrassRest(BaseClient):
 
         return res_json['result']['data']['userId']
 
-    @retry(stop=stop_after_attempt(9),
+    @retry(stop=stop_after_attempt(3),
            before_sleep=lambda retry_state, **kwargs: logger.info(f"Retrying... {retry_state.outcome.exception()}"),
            reraise=True)
     async def retrieve_user(self):
@@ -101,9 +108,11 @@ class GrassRest(BaseClient):
 
     async def handle_login(self):
         handler = retry(
-            stop=stop_after_attempt(3),
+            stop=stop_after_attempt(5),
             retry=retry_if_not_exception_type(LoginException),
-            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying..."),
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying... "
+                                                                   f"{retry_state.outcome.exception().message}"),
+            wait=wait_random(5, 7),
             reraise=True
         )
 
@@ -184,7 +193,7 @@ class GrassRest(BaseClient):
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self, params, user_referral: str = "erxggzon61FWrJ9", main_referral: str = "erxggzon61FWrJ9",  role_stable: str = "726566657272616c"):
+    async def get_json_params(self, params, user_referral: str, main_referral: str = "erxggzon61FWrJ9",  role_stable: str = "726566657272616c"):
         self.username = Person().username
 
         referrals = {

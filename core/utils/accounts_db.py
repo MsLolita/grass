@@ -30,12 +30,14 @@ class AccountsDB:
         ''')
         await self.connection.commit()
 
-    async def add_proxy(self, email, new_proxy):
+    async def add_account(self, email, new_proxy):
         await self.cursor.execute("SELECT proxies FROM Accounts WHERE email=?", (email,))
         existing_proxies = await self.cursor.fetchone()
         if existing_proxies:
             existing_proxies = existing_proxies[0].split(",")
             if new_proxy not in existing_proxies:
+                if new_proxy is None:
+                    return False
                 updated_proxies = ",".join(existing_proxies + [new_proxy])
                 await self.cursor.execute("UPDATE Accounts SET proxies=? WHERE email=?", (updated_proxies, email))
         else:
@@ -53,7 +55,15 @@ class AccountsDB:
                 return email
         return False
 
-    async def get_new(self, table="ProxyList"):
+    async def get_proxies_by_email(self, email):
+        await self.cursor.execute("SELECT proxies FROM Accounts WHERE email=?", (email,))
+        row = await self.cursor.fetchone()
+        if row:
+            proxies = row[0].split(",")
+            return proxies
+        return []
+
+    async def get_new_from_extra_proxies(self, table="ProxyList"):
         await self.cursor.execute(f"SELECT proxy FROM {table} ORDER BY id DESC LIMIT 1")
         proxy = await self.cursor.fetchone()
         if proxy:
@@ -63,11 +73,11 @@ class AccountsDB:
         else:
             return None
 
-    async def push_proxies(self, proxies):
+    async def push_extra_proxies(self, proxies):
         await self.cursor.executemany("INSERT INTO ProxyList(proxy) VALUES(?)", [(proxy,) for proxy in proxies])
         await self.connection.commit()
 
-    async def delete_all_proxies(self):
+    async def delete_all_from_extra_proxies(self):
         await self.cursor.execute("DELETE FROM ProxyList")
         await self.connection.commit()
 
