@@ -13,7 +13,7 @@ from core.utils.session import BaseClient
 try:
     from data.config import REF_CODE
 except ImportError:
-    REF_CODE = ""
+    REF_CODE = "qG_Fl7T6ueZuF1v"
 
 
 class GrassRest(BaseClient):
