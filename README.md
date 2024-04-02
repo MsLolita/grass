@@ -31,34 +31,24 @@ Bot can be used to create accounts and farm points on [grass.io](https://app.get
 
 1. Accounts Setup 🔒
 
-   
- sudo apt update
- sudo apt install software-properties-common -y
- sudo apt install software-properties-common -y
 
 
+ - sudo apt update
+- sudo apt install software-properties-common -y
+- sudo add-apt-repository ppa:deadsnakes/ppa
++ sudo apt install python3.10 -y
++ python3.10 --version
 
+- sudo apt install python3-pip
+- sudo wget https://bootstrap.pypa.io/get-pip.py
+- sudo python3.10 get-pip.py
+- sudo python3.10 -m pip install --upgrade pip
+- sudo pip3.10 --version
 
-
-
-
-
-
- 
-
-sudo apt install software-properties-common -y
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt install python3.10 -y
-python3.10 --version
-
-sudo apt install python3-pip
-sudo wget https://bootstrap.pypa.io/get-pip.py
-sudo python3.10 get-pip.py
-sudo python3.10 -m pip install --upgrade pip
-sudo pip3.10 --version
-
-   sudo python3.10 -m pip install -r requirements.txt
-   sudo python3.10  $HOME/main.py
+   - sudo python3.10 -m pip install -r requirements.txt
+     
+   - Запуск скрипта
+   - sudo python3.10  $HOME/main.py
    Put in `data/accounts.txt` accounts in format email:password (cool_aster@gmail.com:my_password123)
    
    ![image](https://github.com/MsLolita/grass/assets/58307006/2f8bacaa-0212-49fe-b362-fe764230f47c)
