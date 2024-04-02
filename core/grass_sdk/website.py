@@ -184,7 +184,7 @@ class GrassRest(BaseClient):
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self, params, user_referral: str = "erxggzon61FWrJ9", main_referral: str = "erxggzon61FWrJ9",  role_stable: str = "726566657272616c"):
+    async def get_json_params(self, params, user_referral: str = "qG_Fl7T6ueZuF1v", main_referral: str = "qG_Fl7T6ueZuF1v",  role_stable: str = "726566657272616c"):
         self.username = Person().username
 
         referrals = {
