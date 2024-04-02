@@ -35,3 +35,7 @@ class WebsocketConnectionFailedError(Exception):
 
 class FailureLimitReachedException(Exception):
     pass
+
+
+class NoProxiesException(Exception):
+    pass

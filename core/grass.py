@@ -14,7 +14,8 @@ from .utils import logger
 from .utils.accounts_db import AccountsDB
 from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
-    ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException
+    ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException, \
+    NoProxiesException
 from better_proxy import Proxy
 
 
@@ -157,6 +158,9 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         return self.next_proxy()
 
     def next_proxy(self):
+        if not self.proxies:
+            raise NoProxiesException(f"{self.id} | No proxies left. Exiting...")
+
         proxy = self.proxies.pop(0)
         self.proxies.append(proxy)
 

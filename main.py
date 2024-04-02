@@ -13,7 +13,7 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
-from core.utils.exception import LoginException
+from core.utils.exception import LoginException, NoProxiesException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY
 
@@ -33,6 +33,7 @@ def bot_info(name: str = ""):
         f"{colored('0x000007c73a94f8582ef95396918dcd04f806cdd8', color='light_green')}"
     )
 
+
 async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
     consumables = account.split(":")[:2]
 
@@ -44,30 +45,30 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
     grass = None
 
-    for _ in range(3):
-        try:
-            grass = Grass(_id, email, password, proxy, db)
+    try:
+        grass = Grass(_id, email, password, proxy, db)
 
-            if REGISTER_ACCOUNT_ONLY:
-                await asyncio.sleep(random.uniform(*REGISTER_DELAY))
-                logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+        if REGISTER_ACCOUNT_ONLY:
+            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
-                await grass.create_account()
-            else:
-                await asyncio.sleep(random.uniform(0.5, 1) * _id)
-                logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+            await grass.create_account()
+        else:
+            await asyncio.sleep(random.uniform(4, 5) * _id)
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
-                await grass.start()
+            await grass.start()
 
-            return True
-        except LoginException as e:
-            logger.warning(e)
-            return True
-        except Exception as e:
-            logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
-        finally:
-            if grass:
-                await grass.session.close()
+        return True
+    except LoginException as e:
+        logger.warning(e)
+    except NoProxiesException as e:
+        logger.warning(e)
+    except Exception as e:
+        logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
+    finally:
+        if grass:
+            await grass.session.close()
 
 
 async def main():
