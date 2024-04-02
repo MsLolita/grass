@@ -4,7 +4,9 @@ import random
 import sys
 import traceback
 
-from art import tprint
+from art import text2art
+from termcolor import colored, cprint
+
 from better_proxy import Proxy
 
 from core import Grass
@@ -17,12 +19,19 @@ from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_
 
 
 def bot_info(name: str = ""):
-    tprint(name)
+    cprint(text2art(name), 'green')
 
     if sys.platform == 'win32':
         ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
-    print("EnJoYeR's <crypto/> moves: https://t.me/+tdC-PXRzhnczNDli\nDonate here: 0x000007c73a94f8582ef95396918dcd04f806cdd8")
 
+    print(
+        f"{colored('EnJoYeR <crypto/> moves:', color='light_yellow')} "
+        f"{colored('https://t.me/+tdC-PXRzhnczNDli', color='light_green')}"
+    )
+    print(
+        f"{colored('Donate here:', color='light_yellow')} "
+        f"{colored('0x000007c73a94f8582ef95396918dcd04f806cdd8', color='light_green')}"
+    )
 
 async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
     consumables = account.split(":")[:2]
