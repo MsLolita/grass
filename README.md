@@ -17,6 +17,8 @@ Cheapest [proxies and servers](https://teletype.in/@web3enjoyer/4a2G9NuHssy) whi
 
 > You can put as many proxies as u can, bot uses database and will load up proxies from extra ones
 
+🔹**To say thanks for work: 0x000007c73a94f8582ef95396918dcd04f806cdd8**
+
 
 ## Quick Start 📚
    1. To install libraries on Windows click on `INSTALL.bat` (or in console: `pip install -r requirements.txt`).
