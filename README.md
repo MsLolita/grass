@@ -3,11 +3,11 @@
 
 Discover the latest `<crypto/>` moves in my Telegram Channel:
 
-[![My Channel 🥰](https://img.shields.io/badge/Web3_Enjoyer_|_Subscribe_🥰-0A66C2?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/web3_enjoyer_club) 
+[![My Channel 🥰](https://img.shields.io/badge/Web3_Enjoyer_|_Subscribe_🥰-0A66C2?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/null_company) 
 
-Cheapest proxies and servers which fits for grass [here](https://teletype.in/@web3enjoyer/4a2G9NuHssy).
+Cheapest proxies and servers which fits for grass [here](https://t.me/null_company).
 
-![image](https://github.com/MsLolita/grass/assets/58307006/9bb115d3-18f0-4a7d-8450-b7463a0b33d9)
+![image](https://github.com/tera2206)
 
 
 Bot can be used to create accounts and farm points on [grass.io](https://app.getgrass.io/register/?referralCode=erxggzon61FWrJ9)
@@ -31,11 +31,12 @@ Bot can be used to create accounts and farm points on [grass.io](https://app.get
 
 1. Accounts Setup 🔒
 
+   sudo python3.10 -m pip install -r requirements.txt
    Put in `data/accounts.txt` accounts in format email:password (cool_aster@gmail.com:my_password123)
    
    ![image](https://github.com/MsLolita/grass/assets/58307006/2f8bacaa-0212-49fe-b362-fe764230f47c)
 
-2. Proxy Setup 🔒
+1. Proxy Setup 🔒
 
    Configure your proxies with the *ANY* (socks, http/s, ...) format in `data/proxies.txt` 🌐
 
