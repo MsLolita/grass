@@ -11,11 +11,12 @@ from data.config import MIN_PROXY_SCORE, CHECK_POINTS
 from .grass_sdk.extension import GrassWs
 from .grass_sdk.website import GrassRest
 from .utils import logger
+
 from .utils.accounts_db import AccountsDB
 from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
     ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException, \
-    NoProxiesException
+    NoProxiesException, ProxyBlockedException
 from better_proxy import Proxy
 
 
@@ -46,7 +47,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 browser_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, self.proxy or ""))
 
                 await self.run(browser_id, user_id)
-            except ProxyForbiddenException:
+            except (ProxyBlockedException, ProxyForbiddenException) as e:
                 self.proxies.remove(self.proxy)
                 msg = "Proxy forbidden"
             except ProxyError:
@@ -61,18 +62,14 @@ class Grass(GrassWs, GrassRest, FailureCounter):
             else:
                 msg = ""
 
-            sleep_time = random.randint(20, 30) # * 60
-
             await self.failure_handler(
                 is_raise=False,
-                msg=f"{self.id} | Sleeping for {int(sleep_time)} seconds... Too many errors. Retrying...",
-                sleep_time=sleep_time
             )
 
             await self.change_proxy()
             logger.info(f"{self.id} | Changed proxy to {self.proxy}. {msg}. Retrying...")
 
-            await asyncio.sleep(random.uniform(5, 10))
+            await asyncio.sleep(random.uniform(20, 30))
 
     async def run(self, browser_id: str, user_id: str):
         while True:
@@ -95,7 +92,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                         points = await self.get_points_handler()
                         logger.info(f"{self.id} | Total points: {points}")
 
-                    self.fail_reset()
+                    if i:
+                        self.fail_reset()
 
                     await asyncio.sleep(19.9)
             except WebsocketClosedException as e:
@@ -104,16 +102,17 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 logger.info(f"{self.id} | Connection reset: {e}. Reconnecting...")
             except TypeError as e:
                 logger.info(f"{self.id} | Type error: {e}. Reconnecting...")
+                await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay fro some minutes...")
 
-            await self.failure_handler(limit=3)
+            await self.failure_handler(limit=4)
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(5, 10)
 
     @retry(stop=stop_after_attempt(13),
            retry=(retry_if_exception_type(ConnectionError) | retry_if_not_exception_type(ProxyForbiddenException)),
            retry_error_callback=lambda retry_state:
            raise_error(WebsocketConnectionFailedError(f"{retry_state.outcome.exception()}")),
-           wait=wait_random(1, 2),
+           wait=wait_random(7, 10),
            reraise=True)
     async def connection_handler(self):
         logger.info(f"{self.id} | Connecting...")

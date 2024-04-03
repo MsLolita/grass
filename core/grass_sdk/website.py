@@ -5,7 +5,7 @@ import aiohttp
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
-from core.utils.exception import LoginException
+from core.utils.exception import LoginException, ProxyBlockedException
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
 
@@ -109,10 +109,10 @@ class GrassRest(BaseClient):
     async def handle_login(self):
         handler = retry(
             stop=stop_after_attempt(5),
-            retry=retry_if_not_exception_type(LoginException),
+            retry=retry_if_not_exception_type((LoginException, ProxyBlockedException)),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying... "
                                                                    f"{retry_state.outcome.exception()}"),
-            wait=wait_random(5, 7),
+            wait=wait_random(15, 20),
             reraise=True
         )
 
@@ -135,6 +135,8 @@ class GrassRest(BaseClient):
         if res_json.get("error") is not None:
             raise LoginException(f"{self.id} | Login stopped: {res_json['error']['message']}")
 
+        if response.status == 403:
+            raise ProxyBlockedException(f"{self.id} | Login response: {await response.text()}")
         if response.status != 200:
             raise aiohttp.ClientConnectionError(f"{self.id} | Login response: | {await response.text()}")
 

@@ -39,3 +39,7 @@ class FailureLimitReachedException(Exception):
 
 class NoProxiesException(Exception):
     pass
+
+
+class ProxyBlockedException(Exception):
+    pass
