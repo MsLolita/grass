@@ -164,11 +164,13 @@ class Grass(GrassWs, GrassRest, FailureCounter):
             else:
                 self.is_extra_proxies_left = False
 
-        return self.next_proxy()
+        return await self.next_proxy()
 
-    def next_proxy(self):
+    async def next_proxy(self):
         if not self.proxies:
-            raise NoProxiesException(f"{self.id} | No proxies left. Exiting...")
+            await self.reset_with_delay(f"{self.id} | No proxies left. Use same proxy...", 30 * 60)
+            return self.proxy
+            # raise NoProxiesException(f"{self.id} | No proxies left. Exiting...")
 
         proxy = self.proxies.pop(0)
         self.proxies.append(proxy)
