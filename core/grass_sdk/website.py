@@ -26,7 +26,7 @@ class GrassRest(BaseClient):
 
     async def create_account_handler(self):
         handler = retry(
-            stop=stop_after_attempt(7),
+            stop=stop_after_attempt(12),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Create Account Retrying...  | "
                                                                    f"{retry_state.outcome.exception()} "),
             wait=wait_random(5, 8),
