@@ -7,7 +7,13 @@ import aiohttp
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
-from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
+from data.config import MIN_PROXY_SCORE, CHECK_POINTS
+
+try:
+    from data.config import STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
+except ImportError:
+    STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True
+
 from .grass_sdk.extension import GrassWs
 from .grass_sdk.website import GrassRest
 from .utils import logger
