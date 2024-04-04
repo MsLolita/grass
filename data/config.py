@@ -1,11 +1,12 @@
 MIN_PROXY_SCORE = 50
 
 # REGISTER PARAMETRS ONLY
-REGISTER_ACCOUNT_ONLY = True
-REGISTER_DELAY = (3, 7)
-THREADS = 2  # for register account only
+REGISTER_ACCOUNT_ONLY = False
+REGISTER_DELAY = (7, 10)
+THREADS = 3  # for register account only
+REF_CODE="GjeXexjDEyC3PUo"
 
-CHECK_POINTS = True  # show point for each account every nearly 10 minutes
+CHECK_POINTS = False  # show point for each account every nearly 10 minutes
 
 ########################################
 
