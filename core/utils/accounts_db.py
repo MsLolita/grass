@@ -49,10 +49,11 @@ class AccountsDB:
         await self.cursor.execute("SELECT email, proxies FROM Accounts")
         rows = await self.cursor.fetchall()
         for row in rows:
-            email = row[0]
-            existing_proxies = row[1].split(",")
-            if proxy in existing_proxies:
-                return email
+            if len(row) > 1:
+                email = row[0]
+                existing_proxies = row[1].split(",")
+                if proxy in existing_proxies:
+                    return email
         return False
 
     async def get_proxies_by_email(self, email):
