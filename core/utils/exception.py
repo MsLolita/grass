@@ -43,3 +43,7 @@ class NoProxiesException(Exception):
 
 class ProxyBlockedException(Exception):
     pass
+
+
+class SiteIsDownException(Exception):
+    pass

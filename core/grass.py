@@ -7,7 +7,7 @@ import aiohttp
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
-from data.config import MIN_PROXY_SCORE, CHECK_POINTS
+from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
 from .grass_sdk.extension import GrassWs
 from .grass_sdk.website import GrassRest
 from .utils import logger
@@ -16,11 +16,13 @@ from .utils.accounts_db import AccountsDB
 from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
     ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException, \
-    NoProxiesException, ProxyBlockedException
+    NoProxiesException, ProxyBlockedException, SiteIsDownException
 from better_proxy import Proxy
 
 
 class Grass(GrassWs, GrassRest, FailureCounter):
+    # global_fail_counter = 0
+
     def __init__(self, _id: int, email: str, password: str, proxy: str = None, db: AccountsDB = None):
         self.proxy = Proxy.from_str(proxy).as_url if proxy else None
         super(GrassWs, self).__init__(email=email, password=password, user_agent=UserAgent().random, proxy=self.proxy)
@@ -36,29 +38,37 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.is_extra_proxies_left: bool = True
 
         self.fail_count = 0
+        self.limit = 5
 
     async def start(self):
         self.proxies = await self.db.get_proxies_by_email(self.email)
+        self.log_global_count(True)
         # logger.info(f"{self.id} | {self.email} | Starting...")
         while True:
             try:
+                Grass.is_site_down()
+
                 user_id = await self.enter_account()
 
                 browser_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, self.proxy or ""))
 
                 await self.run(browser_id, user_id)
             except (ProxyBlockedException, ProxyForbiddenException) as e:
-                self.proxies.remove(self.proxy)
+                # self.proxies.remove(self.proxy)
                 msg = "Proxy forbidden"
             except ProxyError:
                 msg = "Low proxy score"
             except WebsocketConnectionFailedError:
                 msg = "Websocket connection failed"
+                self.reach_fail_limit()
             except aiohttp.ClientError as e:
                 msg = f"{str(e.args[0])[:30]}..." if "</html>" not in str(e) else "Html page response, 504"
             except FailureLimitReachedException as e:
                 msg = "Failure limit reached"
-                self.fail_count = 5
+                self.reach_fail_limit()
+            except SiteIsDownException as e:
+                msg = f"Site is down!"
+                self.reach_fail_limit()
             else:
                 msg = ""
 
@@ -108,7 +118,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
             await asyncio.sleep(5, 10)
 
-    @retry(stop=stop_after_attempt(13),
+    @retry(stop=stop_after_attempt(8),
            retry=(retry_if_exception_type(ConnectionError) | retry_if_not_exception_type(ProxyForbiddenException)),
            retry_error_callback=lambda retry_state:
            raise_error(WebsocketConnectionFailedError(f"{retry_state.outcome.exception()}")),
@@ -164,3 +174,9 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.proxies.append(proxy)
 
         return proxy
+
+    @staticmethod
+    def is_site_down():
+        if STOP_ACCOUNTS_WHEN_SITE_IS_DOWN and Grass.is_global_error():
+            logger.info(f"Site is down. Sleeping for non-working accounts...")
+            raise SiteIsDownException()

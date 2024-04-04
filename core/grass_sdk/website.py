@@ -5,6 +5,7 @@ import aiohttp
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
+from core.utils.error_helper import raise_error
 from core.utils.exception import LoginException, ProxyBlockedException
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
@@ -112,6 +113,8 @@ class GrassRest(BaseClient):
             retry=retry_if_not_exception_type((LoginException, ProxyBlockedException)),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying... "
                                                                    f"{retry_state.outcome.exception()}"),
+            retry_error_callback=lambda retry_state:
+                    raise_error(LoginException(f"{retry_state.outcome.exception()}")),
             wait=wait_random(15, 20),
             reraise=True
         )
@@ -195,7 +198,8 @@ class GrassRest(BaseClient):
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self, params, user_referral: str, main_referral: str = "erxggzon61FWrJ9",  role_stable: str = "726566657272616c"):
+    async def get_json_params(self, params, user_referral: str, main_referral: str = "erxggzon61FWrJ9",
+                              role_stable: str = "726566657272616c"):
         self.username = Person().username
 
         referrals = {
@@ -222,7 +226,7 @@ class GrassRest(BaseClient):
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
             random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
-                          referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
+                           referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
                            random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
 
         return json_data
