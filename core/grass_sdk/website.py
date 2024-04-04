@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 
@@ -78,6 +79,29 @@ class GrassRest(BaseClient):
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
         return await response.json()
+
+    async def claim_rewards_handler(self):
+        handler = retry(
+            stop=stop_after_attempt(3),
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to claim rewards... "
+                                                                   f"Continue..."),
+            wait=wait_random(5, 7),
+            reraise=True
+        )
+
+        for _ in range(5):
+            await handler(self.claim_reward_for_tier)()
+            await asyncio.sleep(random.uniform(1, 3))
+
+        return True
+
+    async def claim_reward_for_tier(self):
+        url = 'https://api.getgrass.io/claimReward'
+
+        response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy)
+
+        assert (await response.json()).get("result") == {}
+        return True
 
     async def get_points_handler(self):
         handler = retry(
