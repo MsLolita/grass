@@ -116,7 +116,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 logger.info(f"{self.id} | Connection reset: {e}. Reconnecting...")
             except TypeError as e:
                 logger.info(f"{self.id} | Type error: {e}. Reconnecting...")
-                await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay fro some minutes...")
+                await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay for some minutes...", sleep_time=60)
 
             await self.failure_handler(limit=4)
 

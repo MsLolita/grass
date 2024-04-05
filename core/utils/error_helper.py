@@ -40,7 +40,7 @@ class FailureCounter:
             if is_raise:
                 raise_error(FailureLimitReachedException(self.fail_count))
             else:
-                sleep_time = random.randint(15, 20) * 60
+                sleep_time = random.randint(2, 5) * 60
                 msg = f"{self.id} | Sleeping for {int(sleep_time)} seconds... Too many errors. Retrying..."
                 await self.reset_with_delay(msg, sleep_time)
         else:
