@@ -66,10 +66,10 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
             await grass.start()
 
         return True
-    except LoginException as e:
-        logger.warning(e)
-    except NoProxiesException as e:
-        logger.warning(e)
+    # except LoginException as e:
+    #     logger.warning(f"LoginException | {_id} | {e}")
+    # except NoProxiesException as e:
+    #     logger.warning(e)
     except Exception as e:
         logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
     finally:
