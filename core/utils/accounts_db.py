@@ -68,7 +68,7 @@ class AccountsDB:
         await self.cursor.execute(f"SELECT proxy FROM {table} ORDER BY id DESC LIMIT 1")
         proxy = await self.cursor.fetchone()
         if proxy:
-            await self.cursor.execute(f"DELETE FROM {table} WHERE proxy=?", proxy)
+            await self.cursor.execute(f"DELETE FROM {table} WHERE proxy=?", (proxy,))
             await self.connection.commit()
             return proxy[0]
         else:

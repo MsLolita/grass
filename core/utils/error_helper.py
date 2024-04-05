@@ -61,20 +61,22 @@ class FailureCounter:
         FailureCounter.global_fail_counter[self.id] = int(is_work)
 
     @staticmethod
-    def clear_global_count():
+    async def clear_global_counter():
+        await asyncio.sleep(10 * 60)
+
         FailureCounter.global_fail_counter = {x: 1 for x in FailureCounter.global_fail_counter}
 
     @staticmethod
-    async def is_global_error():
+    async def is_global_error(min_limit: int = 10):
         amount = len(FailureCounter.global_fail_counter)
         work_count = sum(FailureCounter.global_fail_counter.values())
         fail_count = amount - work_count
 
-        limit_fail_amount = amount * 0.10
+        limit_fail_amount = amount * 0.30
 
-        if limit_fail_amount < 5:
-            limit_fail_amount = min(amount, 5)
+        if limit_fail_amount < min_limit:
+            limit_fail_amount = min(amount, min_limit)
 
         if fail_count > limit_fail_amount:
-            asyncio.create_task(lambda: asyncio.sleep(10 * 60) or FailureCounter.clear_global_count())
+            asyncio.create_task(FailureCounter.clear_global_counter())
             return True

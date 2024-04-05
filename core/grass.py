@@ -47,7 +47,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         # logger.info(f"{self.id} | {self.email} | Starting...")
         while True:
             try:
-                await Grass.is_site_down()
+                Grass.is_site_down()
 
                 user_id = await self.enter_account()
 
@@ -188,7 +188,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         return proxy
 
     @staticmethod
-    async def is_site_down():
-        if STOP_ACCOUNTS_WHEN_SITE_IS_DOWN and await Grass.is_global_error():
+    def is_site_down():
+        if STOP_ACCOUNTS_WHEN_SITE_IS_DOWN and Grass.is_global_error():
             logger.info(f"Site is down. Sleeping for non-working accounts...")
             raise SiteIsDownException()
