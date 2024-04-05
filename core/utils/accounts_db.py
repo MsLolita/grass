@@ -1,5 +1,7 @@
 import aiosqlite
 
+from core.utils import logger
+
 
 class AccountsDB:
     def __init__(self, db_path):
@@ -65,9 +67,11 @@ class AccountsDB:
         return []
 
     async def get_new_from_extra_proxies(self, table="ProxyList"):
+        # logger.info(f"Getting new proxy from {table}...")
         await self.cursor.execute(f"SELECT proxy FROM {table} ORDER BY id DESC LIMIT 1")
         proxy = await self.cursor.fetchone()
-        if proxy[0]:
+        # logger.info(f"Extra proxy: {proxy}")
+        if proxy and len(proxy) == 1:
             await self.cursor.execute(f"DELETE FROM {table} WHERE proxy=?", proxy)
             await self.connection.commit()
             return proxy[0]
