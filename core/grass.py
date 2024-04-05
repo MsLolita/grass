@@ -17,7 +17,7 @@ from .utils.accounts_db import AccountsDB
 from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
     ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException, \
-    NoProxiesException, ProxyBlockedException, SiteIsDownException
+    NoProxiesException, ProxyBlockedException, SiteIsDownException, LoginException
 from better_proxy import Proxy
 
 
@@ -54,6 +54,9 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 browser_id = str(uuid.uuid3(uuid.NAMESPACE_DNS, self.proxy or ""))
 
                 await self.run(browser_id, user_id)
+            except LoginException as e:
+                logger.warning(f"LoginException | {self.id} | {e}")
+                return False
             except (ProxyBlockedException, ProxyForbiddenException) as e:
                 # self.proxies.remove(self.proxy)
                 msg = "Proxy forbidden"
