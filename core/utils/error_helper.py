@@ -67,7 +67,7 @@ class FailureCounter:
         FailureCounter.global_fail_counter = {x: 1 for x in FailureCounter.global_fail_counter}
 
     @staticmethod
-    async def is_global_error(min_limit: int = 10):
+    def is_global_error(min_limit: int = 10):
         amount = len(FailureCounter.global_fail_counter)
         work_count = sum(FailureCounter.global_fail_counter.values())
         fail_count = amount - work_count
