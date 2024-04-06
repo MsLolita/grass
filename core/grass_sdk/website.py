@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import re
 
 import aiohttp
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
@@ -12,9 +13,10 @@ from core.utils.generate.person import Person
 from core.utils.session import BaseClient
 
 try:
-    from data.config import REF_CODE
+    from data.config import REF_CODE, USE_CUSTOM_REF_LINK_FILE
 except ImportError:
-    REF_CODE = ""
+    REF_CODE = ''
+    USE_CUSTOM_REF_LINK_FILE = True
 
 
 class GrassRest(BaseClient):
@@ -224,16 +226,23 @@ class GrassRest(BaseClient):
                               role_stable: str = "726566657272616c"):
         self.username = Person().username
 
-        referrals = {
-            "my_refferral": main_referral,
-            "user_refferal": user_referral
-        }
+        if isinstance(USE_CUSTOM_REF_LINK_FILE, bool) and USE_CUSTOM_REF_LINK_FILE is True:
+            file_path = 'data/ref_codes_any.txt'
+            referrals = []
+            with open(file_path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    found = re.findall(r'[A-Za-z0-9_-]{15}', line)
+                    referrals.extend(found)
+        elif isinstance(USE_CUSTOM_REF_LINK_FILE, str):
+            referrals = [str(USE_CUSTOM_REF_LINK_FILE)]
+
+        selected_code = random.choice(referrals)
 
         json_data = {
             'email': self.email,
             'password': self.password,
             'role': 'USER',
-            'referral': random.choice(list(referrals.items())),
+            'referral': selected_code,
             'username': self.username,
             'recaptchaToken': "",
             'listIds': [
@@ -246,10 +255,7 @@ class GrassRest(BaseClient):
         #     json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
-        json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
-            random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
-                           referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
-                           random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
+        json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = selected_code
 
         return json_data
 
