@@ -13,7 +13,8 @@ from core.utils.session import BaseClient
 try:
     from data.config import REF_CODE, USE_CUSTOM_REF_LINK_FILE
 except ImportError:
-    REF_CODE = ""
+    REF_CODE = ''
+    USE_CUSTOM_REF_LINK_FILE = True
 
 
 class GrassRest(BaseClient):
@@ -21,7 +22,6 @@ class GrassRest(BaseClient):
         super().__init__(user_agent, proxy)
         self.email = email
         self.password = password
-
         self.id = None
 
     async def create_account_handler(self):
@@ -196,21 +196,19 @@ class GrassRest(BaseClient):
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self,  role_stable: str = "726566657272616c"):
+    async def get_json_params(self, params, user_referral: str, main_referral: str = "erxggzon61FWrJ9",
+                              role_stable: str = "726566657272616c"):
         self.username = Person().username
 
-        if isinstance(USE_CUSTOM_REF_LINK_FILE, bool) and USE_CUSTOM_REF_LINK_FILE:
-            file_path = 'grass/data/ref_codes_any.txt'
+        if isinstance(USE_CUSTOM_REF_LINK_FILE, bool) and USE_CUSTOM_REF_LINK_FILE is True:
+            file_path = 'data/ref_codes_any.txt'
             referrals = []
             with open(file_path, 'r', encoding='utf-8') as file:
                 for line in file:
                     found = re.findall(r'[A-Za-z0-9_-]{15}', line)
                     referrals.extend(found)
-        if isinstance(USE_CUSTOM_REF_LINK_FILE, str):
-            referrals = [USE_CUSTOM_REF_LINK_FILE]
-        else:
-            logger.critical('error 4:20')
-            return
+        elif isinstance(USE_CUSTOM_REF_LINK_FILE, str):
+            referrals = [str(USE_CUSTOM_REF_LINK_FILE)]
 
         selected_code = random.choice(referrals)
 
