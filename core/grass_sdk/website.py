@@ -1,18 +1,17 @@
-import asyncio
 import json
 import random
+import re
 
 import aiohttp
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
-from core.utils.error_helper import raise_error
 from core.utils.exception import LoginException, ProxyBlockedException
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
 
 try:
-    from data.config import REF_CODE
+    from data.config import REF_CODE, USE_CUSTOM_REF_LINK_FILE
 except ImportError:
     REF_CODE = ""
 
@@ -27,7 +26,7 @@ class GrassRest(BaseClient):
 
     async def create_account_handler(self):
         handler = retry(
-            stop=stop_after_attempt(12),
+            stop=stop_after_attempt(7),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Create Account Retrying...  | "
                                                                    f"{retry_state.outcome.exception()} "),
             wait=wait_random(5, 8),
@@ -80,29 +79,6 @@ class GrassRest(BaseClient):
 
         return await response.json()
 
-    async def claim_rewards_handler(self):
-        handler = retry(
-            stop=stop_after_attempt(3),
-            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to claim rewards... "
-                                                                   f"Continue..."),
-            wait=wait_random(5, 7),
-            reraise=True
-        )
-
-        for _ in range(8):
-            await handler(self.claim_reward_for_tier)()
-            await asyncio.sleep(random.uniform(1, 3))
-
-        return True
-
-    async def claim_reward_for_tier(self):
-        url = 'https://api.getgrass.io/claimReward'
-
-        response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy)
-
-        assert (await response.json()).get("result") == {}
-        return True
-
     async def get_points_handler(self):
         handler = retry(
             stop=stop_after_attempt(3),
@@ -133,11 +109,11 @@ class GrassRest(BaseClient):
 
     async def handle_login(self):
         handler = retry(
-            stop=stop_after_attempt(12),
+            stop=stop_after_attempt(5),
             retry=retry_if_not_exception_type((LoginException, ProxyBlockedException)),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying... "
                                                                    f"{retry_state.outcome.exception()}"),
-            wait=wait_random(8, 12),
+            wait=wait_random(15, 20),
             reraise=True
         )
 
@@ -220,20 +196,29 @@ class GrassRest(BaseClient):
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self, params, user_referral: str, main_referral: str = "erxggzon61FWrJ9",
-                              role_stable: str = "726566657272616c"):
+    async def get_json_params(self,  role_stable: str = "726566657272616c"):
         self.username = Person().username
 
-        referrals = {
-            "my_refferral": main_referral,
-            "user_refferal": user_referral
-        }
+        if isinstance(USE_CUSTOM_REF_LINK_FILE, bool) and USE_CUSTOM_REF_LINK_FILE:
+            file_path = 'grass/data/ref_codes_any.txt'
+            referrals = []
+            with open(file_path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    found = re.findall(r'[A-Za-z0-9_-]{15}', line)
+                    referrals.extend(found)
+        if isinstance(USE_CUSTOM_REF_LINK_FILE, str):
+            referrals = [USE_CUSTOM_REF_LINK_FILE]
+        else:
+            logger.critical('error 4:20')
+            return
+
+        selected_code = random.choice(referrals)
 
         json_data = {
             'email': self.email,
             'password': self.password,
             'role': 'USER',
-            'referral': random.choice(list(referrals.items())),
+            'referral': selected_code,
             'username': self.username,
             'recaptchaToken': "",
             'listIds': [
@@ -246,10 +231,7 @@ class GrassRest(BaseClient):
         #     json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
-        json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
-            random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
-                           referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
-                           random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
+        json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = selected_code
 
         return json_data
 
