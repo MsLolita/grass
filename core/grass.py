@@ -9,6 +9,11 @@ from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wai
 
 from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
 
+try:
+    from data.config import SHOW_LOGS_RARELY
+except ImportError:
+    SHOW_LOGS_RARELY = ""
+
 from .grass_sdk.extension import GrassWs
 from .grass_sdk.website import GrassRest
 from .utils import logger
@@ -100,7 +105,11 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                     await self.send_ping()
                     await self.send_pong()
 
-                    logger.info(f"{self.id} | Mined grass.")
+                    if SHOW_LOGS_RARELY:
+                        if not (i % 10):
+                            logger.info(f"{self.id} | Mined grass.")
+                    else:
+                        logger.info(f"{self.id} | Mined grass.")
 
                     if CHECK_POINTS and not (i % 100):
                         points = await self.get_points_handler()

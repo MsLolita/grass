@@ -11,6 +11,8 @@ CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 
 STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
 
+SHOW_LOGS_RARELY = False
+
 ########################################
 
 ACCOUNTS_FILE_PATH = "data/accounts.txt"
