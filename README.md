@@ -49,3 +49,13 @@ Cheapest [proxies and servers](https://teletype.in/@web3enjoyer/4a2G9NuHssy) whi
    Configure your proxies with the *ANY* (socks, http/s, ...) format in `data/proxies.txt` 🌐
 
    ![Proxy Configuration](https://github.com/MsLolita/VeloData/assets/58307006/a2c95484-52b6-497a-b89e-73b89d953d8c)
+
+## Quick Start By Docker
+   1. Install Docker-CE: `curl -sSL -k https://get.docker.com | sh`
+   2. Install Docker Compose: `curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose`
+   3. Clone Source Code: `git clone https://github.com/MsLolita/grass.git`
+   4. Configuration: Modify `data/accounts.txt` and `data/proxies.txt`
+   5. Start Container: `docker-compose up -d`
+
+   PS: Could see more configuration in `docker-compose.yml`
+
