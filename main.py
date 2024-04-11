@@ -60,7 +60,7 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
             await grass.claim_rewards()
         else:
-            await asyncio.sleep(random.uniform(4, 5) * _id)
+            await asyncio.sleep(random.uniform(1, 2) * _id)
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
             await grass.start()
