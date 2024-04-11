@@ -1,4 +1,5 @@
 import aiosqlite
+import asyncio
 
 from core.utils import logger
 
@@ -9,6 +10,8 @@ class AccountsDB:
 
         self.cursor = None
         self.connection = None
+
+        self.db_lock = asyncio.Lock()
 
     async def connect(self):
         self.connection = await aiosqlite.connect(self.db_path)
@@ -33,23 +36,28 @@ class AccountsDB:
         await self.connection.commit()
 
     async def add_account(self, email, new_proxy):
-        await self.cursor.execute("SELECT proxies FROM Accounts WHERE email=?", (email,))
-        existing_proxies = await self.cursor.fetchone()
+        async with self.db_lock:
+            await self.cursor.execute("SELECT proxies FROM Accounts WHERE email=?", (email,))
+            existing_proxies = await self.cursor.fetchone()
         if existing_proxies:
             existing_proxies = existing_proxies[0].split(",")
             if new_proxy not in existing_proxies:
                 if new_proxy is None:
                     return False
                 updated_proxies = ",".join(existing_proxies + [new_proxy])
-                await self.cursor.execute("UPDATE Accounts SET proxies=? WHERE email=?", (updated_proxies, email))
+                async with self.db_lock:
+                    await self.cursor.execute("UPDATE Accounts SET proxies=? WHERE email=?", (updated_proxies, email))
+                    await self.connection.commit()
         else:
-            # Email not found, create new entry
-            await self.cursor.execute("INSERT INTO Accounts(email, proxies) VALUES(?, ?)", (email, new_proxy))
-        await self.connection.commit()
+            async with self.db_lock:
+                # Email not found, create new entry
+                await self.cursor.execute("INSERT INTO Accounts(email, proxies) VALUES(?, ?)", (email, new_proxy))
+                await self.connection.commit()
 
     async def proxies_exist(self, proxy):
-        await self.cursor.execute("SELECT email, proxies FROM Accounts")
-        rows = await self.cursor.fetchall()
+        async with self.db_lock:
+            await self.cursor.execute("SELECT email, proxies FROM Accounts")
+            rows = await self.cursor.fetchall()
         for row in rows:
             if len(row) > 1:
                 email = row[0]
@@ -59,8 +67,9 @@ class AccountsDB:
         return False
 
     async def get_proxies_by_email(self, email):
-        await self.cursor.execute("SELECT proxies FROM Accounts WHERE email=?", (email,))
-        row = await self.cursor.fetchone()
+        async with self.db_lock:
+            await self.cursor.execute("SELECT proxies FROM Accounts WHERE email=?", (email,))
+            row = await self.cursor.fetchone()
         if row:
             proxies = row[0].split(",")
             return proxies
@@ -68,8 +77,9 @@ class AccountsDB:
 
     async def get_new_from_extra_proxies(self, table="ProxyList"):
         # logger.info(f"Getting new proxy from {table}...")
-        await self.cursor.execute(f"SELECT proxy FROM {table} ORDER BY id DESC LIMIT 1")
-        proxy = await self.cursor.fetchone()
+        async with self.db_lock:
+            await self.cursor.execute(f"SELECT proxy FROM {table} ORDER BY id DESC LIMIT 1")
+            proxy = await self.cursor.fetchone()
         # logger.info(f"Extra proxy: {proxy}")
         if proxy and len(proxy) == 1:
             await self.cursor.execute(f"DELETE FROM {table} WHERE proxy=?", proxy)
@@ -79,12 +89,14 @@ class AccountsDB:
             return None
 
     async def push_extra_proxies(self, proxies):
-        await self.cursor.executemany("INSERT INTO ProxyList(proxy) VALUES(?)", [(proxy,) for proxy in proxies])
-        await self.connection.commit()
+        async with self.db_lock:
+            await self.cursor.executemany("INSERT INTO ProxyList(proxy) VALUES(?)", [(proxy,) for proxy in proxies])
+            await self.connection.commit()
 
     async def delete_all_from_extra_proxies(self):
-        await self.cursor.execute("DELETE FROM ProxyList")
-        await self.connection.commit()
+        async with self.db_lock:
+            await self.cursor.execute("DELETE FROM ProxyList")
+            await self.connection.commit()
 
     async def close_connection(self):
         await self.connection.close()
