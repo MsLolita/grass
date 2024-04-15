@@ -4,26 +4,19 @@ import uuid
 from typing import List, Optional
 
 import aiohttp
+from better_proxy import Proxy
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
-from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
-
-try:
-    from data.config import SHOW_LOGS_RARELY
-except ImportError:
-    SHOW_LOGS_RARELY = ""
-
+from data.config import settings
 from .grass_sdk.extension import GrassWs
 from .grass_sdk.website import GrassRest
 from .utils import logger
-
 from .utils.accounts_db import AccountsDB
 from .utils.error_helper import raise_error, FailureCounter
 from .utils.exception import WebsocketClosedException, LowProxyScoreException, ProxyScoreNotFoundException, \
     ProxyForbiddenException, ProxyError, WebsocketConnectionFailedError, FailureLimitReachedException, \
-    NoProxiesException, ProxyBlockedException, SiteIsDownException, LoginException
-from better_proxy import Proxy
+    ProxyBlockedException, SiteIsDownException, LoginException
 
 
 class Grass(GrassWs, GrassRest, FailureCounter):
@@ -49,7 +42,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
     async def start(self):
         self.proxies = await self.db.get_proxies_by_email(self.email)
         self.log_global_count(True)
-        # logger.info(f"{self.id} | {self.email} | Starting...")
+        logger.info(f"{self.id} | {self.email} | Starting...")
         while True:
             try:
                 Grass.is_site_down()
@@ -99,19 +92,19 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 if self.proxy_score is None:
                     await asyncio.sleep(1)
 
-                    await self.handle_proxy_score(MIN_PROXY_SCORE)
+                    await self.handle_proxy_score(settings.MIN_PROXY_SCORE)
 
                 for i in range(999999999):
                     await self.send_ping()
                     await self.send_pong()
 
-                    if SHOW_LOGS_RARELY:
+                    if settings.SHOW_LOGS_RARELY:
                         if not (i % 10):
                             logger.info(f"{self.id} | Mined grass.")
                     else:
                         logger.info(f"{self.id} | Mined grass.")
 
-                    if CHECK_POINTS and not (i % 100):
+                    if settings.CHECK_POINTS and not (i % 100):
                         points = await self.get_points_handler()
                         logger.info(f"{self.id} | Total points: {points}")
 
@@ -163,7 +156,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
             logger.success(f"{self.id} | Proxy score: {self.proxy_score}")
             return True
         else:
-            raise LowProxyScoreException(f"{self.id} | Too low proxy score: {proxy_score} for {self.proxy}. Retrying...")
+            raise LowProxyScoreException(
+                f"{self.id} | Too low proxy score: {proxy_score} for {self.proxy}. Retrying...")
 
     async def change_proxy(self):
         self.proxy = await self.get_new_proxy()
@@ -198,6 +192,6 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
     @staticmethod
     def is_site_down():
-        if STOP_ACCOUNTS_WHEN_SITE_IS_DOWN and Grass.is_global_error():
+        if settings.STOP_ACCOUNTS_WHEN_SITE_IS_DOWN and Grass.is_global_error():
             logger.info(f"Site is down. Sleeping for non-working accounts...")
             raise SiteIsDownException()

@@ -50,8 +50,8 @@ class AutoReger:
         await self.define_tasks(worker_func)
 
         (logger.success if self.success else logger.warning)(
-                   f"Successfully handled {self.success} accounts :)" if self.success
-                   else "No accounts handled :( | Check logs in logs/out.log")
+            f"Successfully handled {self.success} accounts :)" if self.success
+            else "No accounts handled :( | Check logs in logs/out.log")
 
     async def define_tasks(self, worker_func: callable):
         await wait([create_task(self.worker(account, worker_func)) for account in self.accounts])

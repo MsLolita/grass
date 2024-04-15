@@ -15,8 +15,7 @@ from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
 from core.utils.exception import LoginException, NoProxiesException
 from core.utils.generate.person import Person
-from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
-    CLAIM_REWARDS_ONLY
+from data.config import settings
 
 
 def bot_info(name: str = ""):
@@ -49,13 +48,13 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
     try:
         grass = Grass(_id, email, password, proxy, db)
 
-        if REGISTER_ACCOUNT_ONLY:
-            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
+        if settings.REGISTER_ACCOUNT_ONLY:
+            await asyncio.sleep(random.uniform(settings.REGISTER_DELAY_MIN,settings.REGISTER_DELAY_MAX))
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
             await grass.create_account()
-        elif CLAIM_REWARDS_ONLY:
-            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
+        elif settings.CLAIM_REWARDS_ONLY:
+            await asyncio.sleep(random.uniform(settings.REGISTER_DELAY_MIN,settings.REGISTER_DELAY_MAX))
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
             await grass.claim_rewards()
@@ -78,8 +77,8 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
 
 
 async def main():
-    accounts = file_to_list(ACCOUNTS_FILE_PATH)
-    proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
+    accounts = file_to_list(settings.ACCOUNTS_FILE_PATH)
+    proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(settings.PROXIES_FILE_PATH)]
 
     db = AccountsDB('data/proxies_stats.db')
     await db.connect()
@@ -97,17 +96,17 @@ async def main():
     await db.push_extra_proxies(proxies[len(accounts):])
 
     autoreger = AutoReger.get_accounts(
-        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH),
+        (settings.ACCOUNTS_FILE_PATH, settings.PROXIES_FILE_PATH),
         with_id=True,
         static_extra=(db, )
     )
 
-    if REGISTER_ACCOUNT_ONLY:
+    if settings.REGISTER_ACCOUNT_ONLY:
         msg = "__REGISTER__ MODE"
-        threads = THREADS
-    elif CLAIM_REWARDS_ONLY:
+        threads = settings.THREADS
+    elif settings.CLAIM_REWARDS_ONLY:
         msg = "__CLAIM__ MODE"
-        threads = THREADS
+        threads = settings.THREADS
     else:
         msg = "__MINING__ MODE"
         threads = len(autoreger.accounts)

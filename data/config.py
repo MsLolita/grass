@@ -1,19 +1,26 @@
-MIN_PROXY_SCORE = 50
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-CLAIM_REWARDS_ONLY = False  # claim tiers rewards only (https://app.getgrass.io/dashboard/referral-program)
 
-# REGISTER PARAMETRS ONLY
-REGISTER_ACCOUNT_ONLY = True
-REGISTER_DELAY = (3, 7)
-THREADS = 2  # for register account / claim rewards mode only
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
+    MIN_PROXY_SCORE: int = 50
+    CLAIM_REWARDS_ONLY: bool = False
+    REGISTER_ACCOUNT_ONLY: bool = False
+    REGISTER_DELAY_MIN: int = 3
+    REGISTER_DELAY_MAX: int = 5
+    THREADS: int = 2
+    CHECK_POINTS: bool = True
+    STOP_ACCOUNTS_WHEN_SITE_IS_DOWN: bool = True
+    SHOW_LOGS_RARELY: bool = False
+    ACCOUNTS_FILE_PATH: str = "data/accounts.txt"
+    PROXIES_FILE_PATH: str = "data/proxies.txt"
+    REF_CODE: str = "fUzBa0jy7s9Eawx" # %)
+    TWO_CAPTCHA_API_KEY: str = ""
+    ANTICAPTCHA_API_KEY: str = ""
+    CAPMONSTER_API_KEY: str = ""
+    CAPSOLVER_API_KEY: str = ""
+    CAPTCHAAI_API_KEY: str = ""
+    CAPTCHA_PARAMS: str = ""
 
-CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 
-STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
-
-SHOW_LOGS_RARELY = False
-
-########################################
-
-ACCOUNTS_FILE_PATH = "data/accounts.txt"
-PROXIES_FILE_PATH = "data/proxies.txt"
+settings = Settings()

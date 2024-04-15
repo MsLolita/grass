@@ -6,15 +6,10 @@ import aiohttp
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
-from core.utils.error_helper import raise_error
 from core.utils.exception import LoginException, ProxyBlockedException
 from core.utils.generate.person import Person
 from core.utils.session import BaseClient
-
-try:
-    from data.config import REF_CODE
-except ImportError:
-    REF_CODE = ""
+from data.config import settings
 
 
 class GrassRest(BaseClient):
@@ -44,7 +39,7 @@ class GrassRest(BaseClient):
         }
 
         response = await self.session.post(url, headers=self.website_headers, json=await self.get_json_params(params,
-                                                                                                              REF_CODE),
+                                                                                                              settings.REF_CODE),
                                            proxy=self.proxy)
 
         if response.status != 200 or "error" in await response.text():
@@ -233,7 +228,7 @@ class GrassRest(BaseClient):
             'email': self.email,
             'password': self.password,
             'role': 'USER',
-            'referral': random.choice(list(referrals.items())),
+            'referralCode': random.choice(list(referrals.values())),
             'username': self.username,
             'recaptchaToken': "",
             'listIds': [
@@ -244,12 +239,6 @@ class GrassRest(BaseClient):
         # captcha_service = CaptchaService()
         # if captcha_service.parse_captcha_type(exit_on_fail=False):
         #     json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
-
-        json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
-        json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
-            random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
-                           referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
-                           random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
 
         return json_data
 
