@@ -6,6 +6,7 @@ import aiohttp
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
+from core.utils.captcha_service import CaptchaService
 from core.utils.error_helper import raise_error
 from core.utils.exception import LoginException, ProxyBlockedException
 from core.utils.generate.person import Person
@@ -241,9 +242,9 @@ class GrassRest(BaseClient):
             ],
         }
 
-        # captcha_service = CaptchaService()
-        # if captcha_service.parse_captcha_type(exit_on_fail=False):
-        #     json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
+        captcha_service = CaptchaService()
+        if captcha_service.parse_captcha_type(exit_on_fail=False):
+            json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
