@@ -28,6 +28,7 @@ Cheapest [proxies and servers](https://teletype.in/@web3enjoyer/4a2G9NuHssy) whi
 
 1. CREATE ACCOUNTS:
  - In `data/config.py` put `REGISTER_ACCOUNT_ONLY = True`
+ - Throw the api key into `data/config.py`. Since there is a captcha there, you need a service for solving captchas - [AntiCaptcha](http://getcaptchasolution.com/t8yfysqmh3) or [Twocaptcha](https://2captcha.com/?from=12939391).
  - Provide emails and passwords (OPTIONAL) and proxies to register accounts as below!
 
   ![image](https://github.com/MsLolita/grass/assets/58307006/67740c9b-07d6-4f78-a87d-27b09c0303e8)
