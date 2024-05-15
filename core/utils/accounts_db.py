@@ -33,6 +33,14 @@ class AccountsDB:
         proxy TEXT NOT NULL
         )
         ''')
+
+        await self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS PointStats (
+        id INTEGER PRIMARY KEY,
+        email TEXT NOT NULL,
+        points TEXT NOT NULL
+        )
+        ''')
         await self.connection.commit()
 
     async def add_account(self, email, new_proxy):
@@ -65,6 +73,30 @@ class AccountsDB:
                 if proxy in existing_proxies:
                     return email
         return False
+
+    async def update_or_create_point_stat(self, user_id, email, points):
+        async with self.db_lock:
+            await self.cursor.execute("SELECT * FROM PointStats WHERE id = ?", (user_id,))
+            existing_user = await self.cursor.fetchone()
+
+            if existing_user:
+                await self.cursor.execute("UPDATE PointStats SET email = ?, points = ? WHERE id = ?",
+                                          (email, points, user_id))
+            else:
+                await self.cursor.execute("INSERT INTO PointStats(id, email, points) VALUES (?, ?, ?)",
+                                          (user_id, email, points))
+
+            await self.connection.commit()
+
+    async def get_total_points(self):
+        async with self.db_lock:
+            await self.cursor.execute(
+                'SELECT SUM(CAST(points AS INTEGER)) FROM PointStats WHERE points NOT LIKE "%[^0-9]%"')
+            result = await self.cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return 0
 
     async def get_proxies_by_email(self, email):
         async with self.db_lock:
