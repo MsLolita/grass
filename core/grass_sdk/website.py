@@ -178,6 +178,7 @@ class GrassRest(BaseClient):
             await self.send_approve_link()
             await asyncio.sleep(random.uniform(5, 7))
             await self.approve_email_handler()
+            logger.info(f"{self.id} | {self.email} approved!")
 
     async def send_approve_link(self):
         @retry(
@@ -198,7 +199,7 @@ class GrassRest(BaseClient):
                 url, headers=self.website_headers, proxy=self.proxy, data=json.dumps(json_data)
             )
             response_data = await response.json()
-            return response_data.get("result") == {}
+            assert response_data.get("result") == {}
 
         return await approve_email_retry()
 
@@ -216,7 +217,7 @@ class GrassRest(BaseClient):
                 url, headers=self.website_headers, proxy=self.proxy
             )
             response_data = await response.json()
-            return response_data.get("result") == {}
+            assert response_data.get("result") == {}
 
         return await approve_email_retry()
 
