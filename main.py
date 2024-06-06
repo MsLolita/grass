@@ -16,7 +16,7 @@ from core.utils.accounts_db import AccountsDB
 from core.utils.exception import LoginException, NoProxiesException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
-    CLAIM_REWARDS_ONLY
+    CLAIM_REWARDS_ONLY, APPROVE_EMAIL_ONLY
 
 
 def bot_info(name: str = ""):
@@ -54,6 +54,11 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
             await grass.create_account()
+        elif APPROVE_EMAIL_ONLY:
+            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+
+            await grass.confirm_email()
         elif CLAIM_REWARDS_ONLY:
             await asyncio.sleep(random.uniform(*REGISTER_DELAY))
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
@@ -102,12 +107,14 @@ async def main():
         static_extra=(db, )
     )
 
+    threads = THREADS
+
     if REGISTER_ACCOUNT_ONLY:
         msg = "__REGISTER__ MODE"
-        threads = THREADS
+    elif APPROVE_EMAIL_ONLY:
+        msg = "__APPROVE__ MODE"
     elif CLAIM_REWARDS_ONLY:
         msg = "__CLAIM__ MODE"
-        threads = THREADS
     else:
         msg = "__MINING__ MODE"
         threads = len(autoreger.accounts)

@@ -3,7 +3,7 @@ import json
 import random
 
 import aiohttp
-from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
+from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type, before_log
 
 from core.utils import logger
 from core.utils.captcha_service import CaptchaService
@@ -168,6 +168,57 @@ class GrassRest(BaseClient):
 
         return await response.json()
 
+    async def confirm_email(self):
+        await self.enter_account()
+        user_info = await self.retrieve_user()
+
+        if user_info['result']['data']['isVerified']:
+            logger.info(f"{self.id} | {self.email} already verified!")
+        else:
+            await self.send_approve_link()
+            await self.approve_email_handler()
+
+    async def send_approve_link(self):
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_random(5, 7),
+            reraise=True,
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to send email... "
+                                                                   f"Continue..."),
+        )
+        async def approve_email_retry():
+            url = 'https://api.getgrass.io/sendEmailVerification'
+
+            json_data = {
+                'email': self.email,
+            }
+
+            response = await self.session.post(
+                url, headers=self.website_headers, proxy=self.proxy, data=json.dumps(json_data)
+            )
+            response_data = await response.json()
+            return response_data.get("result") == {}
+
+        return await approve_email_retry()
+
+    async def approve_email_handler(self):
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_random(5, 7),
+            reraise=True,
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to approve email... "
+                                                                   f"Continue..."),
+        )
+        async def approve_email_retry():
+            url = 'https://api.getgrass.io/confirmEmail'
+            response = await self.session.post(
+                url, headers=self.website_headers, proxy=self.proxy
+            )
+            response_data = await response.json()
+            return response_data.get("result") == {}
+
+        return await approve_email_retry()
+
     async def get_browser_id(self):
         res_json = await self.get_user_info()
         return res_json['data']['devices'][0]['device_id']
@@ -243,14 +294,14 @@ class GrassRest(BaseClient):
         }
 
         captcha_service = CaptchaService()
-        if captcha_service.parse_captcha_type(exit_on_fail=False):
-            json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
+        json_data['recaptchaToken'] = await captcha_service.get_captcha_token_async()
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
             random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
                            referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
                            random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
+        # print(json_data)
 
         return json_data
 
