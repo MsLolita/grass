@@ -172,7 +172,7 @@ class GrassRest(BaseClient):
         await self.enter_account()
         user_info = await self.retrieve_user()
 
-        if user_info['result']['data']['isVerified']:
+        if user_info['result']['data'].get("isVerified"):
             logger.info(f"{self.id} | {self.email} already verified!")
         else:
             await self.send_approve_link()
