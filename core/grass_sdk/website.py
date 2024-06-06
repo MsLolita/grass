@@ -176,6 +176,7 @@ class GrassRest(BaseClient):
             logger.info(f"{self.id} | {self.email} already verified!")
         else:
             await self.send_approve_link()
+            await asyncio.sleep(random.uniform(4, 7))
             await self.approve_email_handler()
 
     async def send_approve_link(self):
