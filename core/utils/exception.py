@@ -47,3 +47,7 @@ class ProxyBlockedException(Exception):
 
 class SiteIsDownException(Exception):
     pass
+
+
+class EmailApproveLinkNotFoundException(Exception):
+    pass

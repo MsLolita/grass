@@ -13,10 +13,11 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
-from core.utils.exception import LoginException, NoProxiesException
+from core.utils.exception import EmailApproveLinkNotFoundException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
-    CLAIM_REWARDS_ONLY, APPROVE_EMAIL_ONLY
+    CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
+    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL
 
 
 def bot_info(name: str = ""):
@@ -35,39 +36,62 @@ def bot_info(name: str = ""):
     )
 
 
-async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = None):
-    consumables = account.split(":")[:2]
+async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, db: AccountsDB = None):
+    consumables = account.split(":")[:3]
+    imap_pass = None
 
     if len(consumables) == 1:
         email = consumables[0]
         password = Person().random_string(8)
-    else:
+    elif len(consumables) == 2:
         email, password = consumables
+    else:
+        email, password, imap_pass = consumables
 
     grass = None
 
     try:
         grass = Grass(_id, email, password, proxy, db)
 
-        if REGISTER_ACCOUNT_ONLY:
-            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-
-            await grass.create_account()
-        elif APPROVE_EMAIL_ONLY:
-            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-
-            await grass.confirm_email()
-        elif CLAIM_REWARDS_ONLY:
-            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-
-            await grass.claim_rewards()
-        else:
+        if MINING_MODE:
             await asyncio.sleep(random.uniform(1, 2) * _id)
             logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
+        else:
+            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
+            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
 
+        if REGISTER_ACCOUNT_ONLY:
+            await grass.create_account()
+        elif APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL:
+            await grass.enter_account()
+
+            user_info = await grass.retrieve_user()
+
+            if APPROVE_EMAIL:
+                if user_info['result']['data'].get("isVerified"):
+                    logger.info(f"{grass.id} | {grass.email} already verified!")
+                else:
+                    if imap_pass is None:
+                        raise TypeError("IMAP password is not provided")
+                    await grass.confirm_email(imap_pass)
+            if CONNECT_WALLET:
+                if user_info['result']['data'].get("walletAddress"):
+                    logger.info(f"{grass.id} | {grass.email} wallet already linked!")
+                else:
+                    await grass.link_wallet(wallet)
+
+            if user_info['result']['data'].get("isWalletAddressVerified"):
+                logger.info(f"{grass.id} | {grass.email} wallet already verified!")
+            else:
+                if SEND_WALLET_APPROVE_LINK_TO_EMAIL:
+                    await grass.send_approve_link(endpoint="sendWalletAddressEmailVerification")
+            if APPROVE_WALLET_ON_EMAIL:
+                if imap_pass is None:
+                    raise TypeError("IMAP password is not provided")
+                await grass.confirm_wallet_by_email(imap_pass)
+        elif CLAIM_REWARDS_ONLY:
+            await grass.claim_rewards()
+        else:
             await grass.start()
 
         return True
@@ -75,6 +99,8 @@ async def worker_task(_id, account: str, proxy: str = None, db: AccountsDB = Non
     #     logger.warning(f"LoginException | {_id} | {e}")
     # except NoProxiesException as e:
     #     logger.warning(e)
+    except EmailApproveLinkNotFoundException as e:
+        logger.warning(e)
     except Exception as e:
         logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
     finally:
@@ -102,7 +128,7 @@ async def main():
     await db.push_extra_proxies(proxies[len(accounts):])
 
     autoreger = AutoReger.get_accounts(
-        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH),
+        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, WALLETS_FILE_PATH),
         with_id=True,
         static_extra=(db, )
     )
@@ -111,7 +137,15 @@ async def main():
 
     if REGISTER_ACCOUNT_ONLY:
         msg = "__REGISTER__ MODE"
-    elif APPROVE_EMAIL_ONLY:
+    elif APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL:
+        if CONNECT_WALLET:
+            wallets = file_to_list(WALLETS_FILE_PATH)
+            if len(wallets) == 0:
+                logger.error("Wallet file is empty")
+                return
+            elif len(wallets) != len(accounts):
+                logger.error("Wallets count != accounts count")
+                return
         msg = "__APPROVE__ MODE"
     elif CLAIM_REWARDS_ONLY:
         msg = "__CLAIM__ MODE"

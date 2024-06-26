@@ -1,16 +1,20 @@
 import asyncio
+import base64
 import json
 import random
+import time
 
 import aiohttp
-from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type, before_log
+import base58
+from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger
 from core.utils.captcha_service import CaptchaService
-from core.utils.error_helper import raise_error
-from core.utils.exception import LoginException, ProxyBlockedException
+from core.utils.exception import LoginException, ProxyBlockedException, EmailApproveLinkNotFoundException
 from core.utils.generate.person import Person
+from core.utils.mail import MailUtils
 from core.utils.session import BaseClient
+from solders.keypair import Keypair
 
 try:
     from data.config import REF_CODE
@@ -157,7 +161,6 @@ class GrassRest(BaseClient):
         logger.debug(f"{self.id} | Login response: {await response.text()}")
 
         res_json = await response.json()
-
         if res_json.get("error") is not None:
             raise LoginException(f"{self.id} | Login stopped: {res_json['error']['message']}")
 
@@ -168,28 +171,32 @@ class GrassRest(BaseClient):
 
         return await response.json()
 
-    async def confirm_email(self):
-        await self.enter_account()
-        user_info = await self.retrieve_user()
+    async def confirm_email(self, imap_pass: str):
+        await self.send_approve_link(endpoint="sendEmailVerification")
+        await self.approve_email(imap_pass, email_subject="Verify Your Email for Grass", endpoint="confirmEmail")
 
-        if user_info['result']['data'].get("isVerified"):
-            logger.info(f"{self.id} | {self.email} already verified!")
-        else:
-            await self.send_approve_link()
-            await asyncio.sleep(random.uniform(5, 7))
-            await self.approve_email_handler()
-            logger.info(f"{self.id} | {self.email} approved!")
+        logger.info(f"{self.id} | {self.email} approved!")
 
-    async def send_approve_link(self):
+    async def confirm_wallet_by_email(self, imap_pass: str):
+        await self.approve_email(imap_pass, email_subject="Verify Your Wallet Address for Grass",
+                                 endpoint="confirmWalletAddress")
+
+        logger.info(f"{self.id} | {self.email} wallet approved!")
+
+    async def approve_email(self, imap_pass: str, email_subject: str, endpoint: str):
+        verify_token = await self.get_email_approve_token(imap_pass, email_subject)
+        return await self.approve_email_handler(verify_token, endpoint)
+
+    async def send_approve_link(self, endpoint: str):
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_random(5, 7),
             reraise=True,
-            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to send email... "
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to send {endpoint}... "
                                                                    f"Continue..."),
         )
         async def approve_email_retry():
-            url = 'https://api.getgrass.io/sendEmailVerification'
+            url = f'https://api.getgrass.io/{endpoint}'
 
             json_data = {
                 'email': self.email,
@@ -200,26 +207,85 @@ class GrassRest(BaseClient):
             )
             response_data = await response.json()
             assert response_data.get("result") == {}
+            logger.debug(f"{self.id} | {self.email} Sent approve link")
 
         return await approve_email_retry()
 
-    async def approve_email_handler(self):
+    async def approve_email_handler(self, verify_token: str, endpoint: str):
         @retry(
             stop=stop_after_attempt(3),
             wait=wait_random(5, 7),
             reraise=True,
-            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to approve email... "
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to approve {endpoint}... "
                                                                    f"Continue..."),
         )
         async def approve_email_retry():
-            url = 'https://api.getgrass.io/confirmEmail'
+            headers = self.website_headers.copy()
+            headers['authorization'] = verify_token
+
+            url = f'https://api.getgrass.io/{endpoint}'
             response = await self.session.post(
-                url, headers=self.website_headers, proxy=self.proxy
+                url, headers=headers, proxy=self.proxy
             )
             response_data = await response.json()
             assert response_data.get("result") == {}
 
         return await approve_email_retry()
+
+    def sign_message(self, private_key: str, timestamp: int):
+        keypair = Keypair.from_bytes(base58.b58decode(private_key))
+
+        msg = f"""By signing this message you are binding this wallet to all activities associated to your Grass account and agree to our Terms and Conditions (https://www.getgrass.io/terms-and-conditions) and Privacy Policy (https://www.getgrass.io/privacy-policy).
+
+Nonce: {timestamp}"""
+
+        address = keypair.pubkey().__str__()
+        pub_key = base64.b64encode(keypair.pubkey().__bytes__()).decode('utf-8')
+        signature_str = base64.b64encode(keypair.sign_message(msg.encode("utf-8")).__bytes__()).decode('utf-8')
+
+        return address, pub_key, signature_str
+
+    async def link_wallet(self, private_key: str):
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_random(5, 7),
+            reraise=True,
+            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to send link wallet... "
+                                                                   f"Continue..."),
+        )
+        async def linking_wallet():
+            url = 'https://api.getgrass.io/verifySignedMessage'
+
+            timestamp = int(time.time())
+            signatures = self.sign_message(private_key, timestamp)
+
+            json_data = {
+                'signedMessage': signatures[2],
+                'publicKey': signatures[1],
+                'walletAddress': signatures[0],
+                'timestamp': timestamp,
+                'isLedger': False,
+            }
+
+            response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy, json=json_data)
+            response_data = await response.json()
+            assert response_data.get("result") == {}
+            logger.info(f"{self.id} | {self.email} wallet linked!")
+
+        return await linking_wallet()
+
+    async def get_email_approve_token(self, imap_pass: str, email_subject: str) -> str:
+        logger.info(f"{self.id} | {self.email} Getting email approve msg...")
+        mail_utils = MailUtils(self.email, imap_pass)
+        result = await mail_utils.get_msg_async(to=self.email, from_="support@wynd.network",
+                                                subject=email_subject)
+
+        if result['success']:
+            verify_token = result['msg'].split('token=')[1].split('/')[0]
+            return verify_token
+        else:
+            raise EmailApproveLinkNotFoundException(
+                f"{self.id} | {self.email} Email approve link not found for minute! Exited!")
 
     async def get_browser_id(self):
         res_json = await self.get_user_info()
