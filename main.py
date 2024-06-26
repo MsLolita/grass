@@ -85,10 +85,10 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
             else:
                 if SEND_WALLET_APPROVE_LINK_TO_EMAIL:
                     await grass.send_approve_link(endpoint="sendWalletAddressEmailVerification")
-            if APPROVE_WALLET_ON_EMAIL:
-                if imap_pass is None:
-                    raise TypeError("IMAP password is not provided")
-                await grass.confirm_wallet_by_email(imap_pass)
+                if APPROVE_WALLET_ON_EMAIL:
+                    if imap_pass is None:
+                        raise TypeError("IMAP password is not provided")
+                    await grass.confirm_wallet_by_email(imap_pass)
         elif CLAIM_REWARDS_ONLY:
             await grass.claim_rewards()
         else:
