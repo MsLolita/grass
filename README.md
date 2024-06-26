@@ -46,7 +46,7 @@ Cheapest [proxies and servers](https://teletype.in/@web3enjoyer/4a2G9NuHssy) whi
    - `APPROVE_WALLET_ON_EMAIL = True`  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
  - Provide emails and passwords and imap password (access to email) in format email:password:imap_password!
  - Need IMAP access to email
- -  `EMAIL_FOLDER = "" `  # folder where mails comes
+ -  `EMAIL_FOLDER = "" `  # skip for auto, folder where mails comes
  -  `IMAP_DOMAIN = "" `  # skip for auto domain, not always works
 
 ![image](https://github.com/opensolmap/solmap/assets/58307006/edf3ad67-37b4-434c-acfb-98cf58801c61)

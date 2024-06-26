@@ -8,8 +8,9 @@ CONNECT_WALLET = True  # connect wallet (put private keys in wallets.txt)
 SEND_WALLET_APPROVE_LINK_TO_EMAIL = True  # send approve link to email
 APPROVE_WALLET_ON_EMAIL = True  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
 
+# skip for auto chosen
 EMAIL_FOLDER = ""  # folder where mails comes
-IMAP_DOMAIN = ""  # skip for auto domain, not always works
+IMAP_DOMAIN = ""  # not always works
 
 #########################################
 
