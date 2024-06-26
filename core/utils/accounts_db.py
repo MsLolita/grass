@@ -1,9 +1,6 @@
 import aiosqlite
 import asyncio
 
-from core.utils import logger
-
-
 class AccountsDB:
     def __init__(self, db_path):
         self.db_path = db_path
@@ -91,7 +88,10 @@ class AccountsDB:
     async def get_total_points(self):
         async with self.db_lock:
             await self.cursor.execute(
-                'SELECT SUM(CAST(points AS INTEGER)) FROM PointStats WHERE points NOT LIKE "%[^0-9]%"')
+                'SELECT SUM(CAST(points AS INTEGER)) '
+                'FROM (SELECT email, MAX(CAST(points AS INTEGER)) as points '
+                'FROM PointStats WHERE points NOT LIKE "%[^0-9]%" '
+                'GROUP BY email)')
             result = await self.cursor.fetchone()
             if result:
                 return result[0]
