@@ -30,10 +30,6 @@ def bot_info(name: str = ""):
         f"{colored('EnJoYeR <crypto/> moves:', color='light_yellow')} "
         f"{colored('https://t.me/+tdC-PXRzhnczNDli', color='light_green')}"
     )
-    print(
-        f"{colored('Donate here:', color='light_yellow')} "
-        f"{colored('0x000007c73a94f8582ef95396918dcd04f806cdd8', color='light_green')}"
-    )
 
 
 async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, db: AccountsDB = None):
