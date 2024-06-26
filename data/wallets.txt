@@ -1,1 +1,1 @@
-solana private_keys
+solana private_key
