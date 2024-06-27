@@ -41,6 +41,8 @@ class MailUtils:
             email_folder = EMAIL_FOLDER
         elif "outlook" in self.domain:
             email_folder = "JUNK"
+        elif "rambler" in self.domain:
+            email_folder = "Spam"
         else:
             email_folder = "INBOX"
 

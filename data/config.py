@@ -23,7 +23,7 @@ SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc in
 # Mining mode
 MINING_MODE = True  # False - not mine grass, True - mine grass
 
-# REGISTER PARAMETRS ONLY
+# REGISTER PARAMETERS ONLY
 REGISTER_ACCOUNT_ONLY = False
 REGISTER_DELAY = (3, 7)
 

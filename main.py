@@ -16,7 +16,7 @@ from core.utils.accounts_db import AccountsDB
 from core.utils.exception import EmailApproveLinkNotFoundException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
-    CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
+    CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
     WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL
 
 
@@ -65,7 +65,7 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
 
             if APPROVE_EMAIL:
                 if user_info['result']['data'].get("isVerified"):
-                    logger.info(f"{grass.id} | {grass.email} already verified!")
+                    logger.info(f"{grass.id} | {grass.email} email already verified!")
                 else:
                     if imap_pass is None:
                         raise TypeError("IMAP password is not provided")
