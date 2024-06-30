@@ -2,7 +2,7 @@ from typing import Optional, Tuple, Union, List
 
 
 def file_to_list(
-    filename: str, lines: Union[None, int, Tuple[int, int], List[int]] = None
+    filename: str, lines: Union[False, int, Tuple[int, int], List[int]] = False
 ) -> List[str]:
     """
     Reads a file and returns the specified lines as a list.
@@ -10,7 +10,7 @@ def file_to_list(
 
     :param filename: The name of the file to read from.
     :param lines: The lines to return, which can be:
-                  - None (returns all lines),
+                  - False (returns all lines),
                   - int (returns a specific line),
                   - tuple of two ints (returns a range of lines),
                   - list of ints (returns specific lines).
@@ -25,7 +25,7 @@ def file_to_list(
             raise ValueError("Line number is out of range")
         return lines_list[line_number - 1]
 
-    if lines is None:
+    if lines is False:
         return lines_list
     elif isinstance(lines, int):
         return [get_line(lines)]
