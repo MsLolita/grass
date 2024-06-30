@@ -17,7 +17,7 @@ from core.utils.exception import EmailApproveLinkNotFoundException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
-    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL
+    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, ACCOUNTS_TO_WORK
 
 
 def bot_info(name: str = ""):
@@ -105,8 +105,11 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
 
 
 async def main():
-    accounts = file_to_list(ACCOUNTS_FILE_PATH)
-    proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
+    accounts = file_to_list(ACCOUNTS_FILE_PATH, ACCOUNTS_TO_WORK)
+    proxies = [
+        Proxy.from_str(proxy).as_url 
+        for proxy in file_to_list(PROXIES_FILE_PATH, ACCOUNTS_TO_WORK)
+        ]
 
     db = AccountsDB('data/proxies_stats.db')
     await db.connect()
@@ -135,7 +138,7 @@ async def main():
         msg = "__REGISTER__ MODE"
     elif APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL:
         if CONNECT_WALLET:
-            wallets = file_to_list(WALLETS_FILE_PATH)
+            wallets = file_to_list(WALLETS_FILE_PATH, ACCOUNTS_TO_WORK)
             if len(wallets) == 0:
                 logger.error("Wallet file is empty")
                 return

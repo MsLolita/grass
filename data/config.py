@@ -2,11 +2,17 @@ THREADS = 1  # for register account / claim rewards mode / approve email mode
 MIN_PROXY_SCORE = 50  # for mining mode
 
 #########################################
-
 APPROVE_EMAIL = True  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
 CONNECT_WALLET = True  # connect wallet (put private keys in wallets.txt)
 SEND_WALLET_APPROVE_LINK_TO_EMAIL = True  # send approve link to email
 APPROVE_WALLET_ON_EMAIL = True  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
+#########################################
+ACCOUNTS_TO_WORK = False
+# Example usage:
+# ACCOUNTS_TO_WORK = False -> all accounts
+# ACCOUNTS_TO_WORK = 3 -> single account e.g. 3
+# ACCOUNTS_TO_WORK: list = [1, 3, 7] -> specific accounts (e.g. accounts 1, 3, 7)
+# ACCOUNTS_TO_WORK: tuple = (3, 6) -> range of accounts (e.g. accounts 3, 4, 5, 6)
 
 # skip for auto chosen
 EMAIL_FOLDER = ""  # folder where mails comes
