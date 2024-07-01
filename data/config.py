@@ -14,6 +14,9 @@ ACCOUNTS_TO_WORK = False
 # ACCOUNTS_TO_WORK: list = [1, 3, 7] -> specific accounts (e.g. accounts 1, 3, 7)
 # ACCOUNTS_TO_WORK: tuple = (3, 6) -> range of accounts (e.g. accounts 3, 4, 5, 6)
 
+# If you have possibility to forward all approve mails to single IMAP address:
+SINGLE_IMAP_ACCOUNT = False # usage "name@domain.com:password"
+
 # skip for auto chosen
 EMAIL_FOLDER = ""  # folder where mails comes
 IMAP_DOMAIN = ""  # not always works
