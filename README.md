@@ -49,7 +49,11 @@ Cheapest [proxies and servers](https://teletype.in/@web3enjoyer/4a2G9NuHssy) whi
  -  `SINGLE_IMAP_ACCOUNT = False `  # if you have possibility to forward all approve mails to single IMAP address. Usage: change False to "name@domain.com:password" of your main IMAP address
  -  `EMAIL_FOLDER = "" `  # skip for auto, folder where mails comes
  -  `IMAP_DOMAIN = "" `  # skip for auto domain, not always works
-
+- `ACCOUNTS_TO_WORK = False` # useful if you want to select specific accounts that have failed:
+  - `ACCOUNTS_TO_WORK = False` # all accounts
+  - `ACCOUNTS_TO_WORK = 3` # single account e.g. 3
+  - `ACCOUNTS_TO_WORK: list = [1, 3, 7]` # specific accounts (e.g. accounts 1, 3, 7)
+  - `ACCOUNTS_TO_WORK: tuple = (3, 6)` # range of accounts (e.g. accounts 3, 4, 5, 6)
 
 ![image](https://github.com/MsLolita/grass/assets/58307006/e28fba4c-1809-48f9-9475-d881a26beab5)
 ![image](https://github.com/opensolmap/solmap/assets/58307006/edf3ad67-37b4-434c-acfb-98cf58801c61)
