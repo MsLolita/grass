@@ -22,12 +22,12 @@ IMAP_DOMAIN = ""  # not always works
 
 CLAIM_REWARDS_ONLY = False  # claim tiers rewards only (https://app.getgrass.io/dashboard/referral-program)
 
-STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
+STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = False  # stop account for 20 minutes, to reduce proxy traffic usage
 CHECK_POINTS = False  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
-MINING_MODE = True  # False - not mine grass, True - mine grass
+MINING_MODE = False  # False - not mine grass, True - mine grass
 
 # REGISTER PARAMETERS ONLY
 REGISTER_ACCOUNT_ONLY = False

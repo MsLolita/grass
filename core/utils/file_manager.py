@@ -2,18 +2,17 @@ from typing import Optional, Tuple, Union, List
 
 
 def file_to_list(
-    filename: str, lines: Union[False, int, Tuple[int, int], List[int]] = False
+    filename: str, lines: Union[bool, int, Tuple[int, int], List[int]] = False
 ) -> List[str]:
     """
     Reads a file and returns the specified lines as a list.
     Line numbers start from 1.
-
     :param filename: The name of the file to read from.
     :param lines: The lines to return, which can be:
-                  - False (returns all lines),
-                  - int (returns a specific line),
-                  - tuple of two ints (returns a range of lines),
-                  - list of ints (returns specific lines).
+    - False (returns all lines),
+    - int (returns a specific line),
+    - tuple of two ints (returns a range of lines),
+    - list of ints (returns specific lines).
     :return: A list of the content of the specified lines.
     :raises ValueError: If any line number is out of range.
     """
@@ -56,3 +55,27 @@ def shift_file(file):
         f.write(data)  # write the data back
         f.truncate()  # set the file size to the current size
         return first_line.strip()
+
+
+def find_string_number_in_file(search_string, file_path='wallets.txt') -> int | None:
+    """
+    Find the line number where a string occurs in a file.
+
+    Args:
+        search_string (str): String to search for.
+        file_path (str): Path to the file (default: 'wallets.txt').
+
+    Returns:
+        int or None: Line number (1-indexed) if found, None otherwise.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line_number, line in enumerate(file, start=1):
+                if search_string in line:
+                    return line_number
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    except IOError:
+        print(f"Error reading file: {file_path}")
+    
+    return None

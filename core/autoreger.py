@@ -3,7 +3,8 @@ import traceback
 from asyncio import Semaphore, sleep, create_task, wait
 from itertools import zip_longest
 
-from core.utils import logger, file_to_list, str_to_file
+from core.utils import logger, file_to_list, str_to_file, find_string_number_in_file
+from data.config import ACCOUNTS_TO_WORK, ACCOUNTS_FILE_PATH
 
 
 class AutoReger:
@@ -16,8 +17,8 @@ class AutoReger:
 
     @classmethod
     def get_accounts(cls, file_names: tuple, amount: int = None, auto_creation: tuple = None, with_id: bool = False,
-                     static_extra: tuple = None):
-        consumables = [file_to_list(file_name) for file_name in file_names]
+                     static_extra: tuple = None, accounts_to_work: list = None):
+        consumables = [file_to_list(file_name, accounts_to_work) for file_name in file_names]
 
         if amount and consumables[0]:
             consumables = [consumable[:amount] for consumable in consumables]
@@ -43,7 +44,16 @@ class AutoReger:
             return cls(accounts)
 
     async def start(self, worker_func: callable, threads: int = 1, delay: tuple = (0, 0)):
-        logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
+        if ACCOUNTS_TO_WORK:
+            accounts_emails: list = [entry[1].split(':')[0] for entry in self.accounts]
+            accounts_numbers: list = [
+                find_string_number_in_file(email, ACCOUNTS_FILE_PATH) 
+                for email in accounts_emails
+                ]
+            logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
+            logger.info(f"Accounts to work: {accounts_numbers}")
+        else:    
+            logger.info(f"Successfully grabbed {len(self.accounts)} accounts")
 
         self.semaphore = Semaphore(threads)
         self.delay = delay
@@ -57,7 +67,10 @@ class AutoReger:
         await wait([create_task(self.worker(account, worker_func)) for account in self.accounts])
 
     async def worker(self, account: tuple, worker_func: callable):
-        account_id = account[0][:15] if isinstance(account, str) else account[0]
+        if ACCOUNTS_TO_WORK:
+            account_id = find_string_number_in_file(account[1], ACCOUNTS_FILE_PATH)
+        else:
+            account_id = account[0][:15] if isinstance(account, str) else account[0]
         is_success = False
 
         try:
@@ -88,7 +101,10 @@ class AutoReger:
             log_msg = "failed!"
             file_name = "failed"
 
-        file_msg = "|".join(str(x) for x in account)
+        if ACCOUNTS_TO_WORK:
+            file_msg = "|".join([str(account_id)] + [str(x) for x in account[1:]])
+        else:
+            file_msg = "|".join(str(x) for x in account)
         str_to_file(f"./logs/{file_name}.txt", file_msg)
 
         log_func(f"Account №{account_id} {log_msg}")

@@ -7,7 +7,9 @@ import aiohttp
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
-from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
+from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, ACCOUNTS_TO_WORK, \
+ACCOUNTS_FILE_PATH
+from core.utils import find_string_number_in_file
 
 try:
     from data.config import SHOW_LOGS_RARELY
@@ -33,7 +35,11 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.proxy = Proxy.from_str(proxy).as_url if proxy else None
         super(GrassWs, self).__init__(email=email, password=password, user_agent=UserAgent().random, proxy=self.proxy)
         self.proxy_score: Optional[int] = None
-        self.id: int = _id
+        
+        if ACCOUNTS_TO_WORK:
+            self.id: int = find_string_number_in_file(self.email, ACCOUNTS_FILE_PATH)
+        else:
+            self.id: int = _id
 
         self.db: AccountsDB = db
 
