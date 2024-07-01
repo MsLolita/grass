@@ -17,7 +17,7 @@ from core.utils.exception import EmailApproveLinkNotFoundException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
-    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL
+    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, SINGLE_IMAP_ACCOUNT
 
 
 def bot_info(name: str = ""):
@@ -35,6 +35,9 @@ def bot_info(name: str = ""):
 async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, db: AccountsDB = None):
     consumables = account.split(":")[:3]
     imap_pass = None
+    
+    if SINGLE_IMAP_ACCOUNT:
+        consumables.append(SINGLE_IMAP_ACCOUNT.split(":")[1])
 
     if len(consumables) == 1:
         email = consumables[0]
