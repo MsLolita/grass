@@ -280,8 +280,8 @@ Nonce: {timestamp}"""
     async def get_email_approve_token(self, imap_pass: str, email_subject: str) -> str:
         logger.info(f"{self.id} | {self.email} Getting email approve msg...")
         if SEMI_AUTOMATIC_APPROVE_LINK:
-            result['success'] = True
-            result['msg'] = input("Please, enter the email link: ").strip()
+            result = {'success': True}
+            result['msg'] = input(f"Please, paste approve link from {self.email} and press Enter: ").strip()
         else:
             mail_utils = MailUtils(self.email, imap_pass)
             result = await mail_utils.get_msg_async(to=self.email, from_="support@wynd.network",
