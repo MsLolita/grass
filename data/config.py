@@ -27,7 +27,7 @@ CHECK_POINTS = False  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
-MINING_MODE = False  # False - not mine grass, True - mine grass
+MINING_MODE = True  # False - not mine grass, True - mine grass
 
 # REGISTER PARAMETERS ONLY
 REGISTER_ACCOUNT_ONLY = False
