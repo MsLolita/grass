@@ -126,8 +126,13 @@ async def main():
     await db.delete_all_from_extra_proxies()
     await db.push_extra_proxies(proxies[len(accounts):])
 
+    if CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL:
+        used_files = (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, WALLETS_FILE_PATH)
+    else:
+        used_files = (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH)
+        
     autoreger = AutoReger.get_accounts(
-        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, WALLETS_FILE_PATH),
+        file_names=used_files,
         with_id=True,
         static_extra=(db, ),
         accounts_to_work=ACCOUNTS_TO_WORK
