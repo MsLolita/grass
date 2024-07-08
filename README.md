@@ -46,6 +46,7 @@ Cheapest [proxies and servers](https://teletype.in/@web3enjoyer/4a2G9NuHssy) whi
    - `APPROVE_WALLET_ON_EMAIL = True`  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
  - Provide emails and passwords and imap password (access to email) in format email:password:imap_password!
  - Need IMAP access to email
+ -  `SINGLE_IMAP_ACCOUNT = False `  # if you have possibility to forward all approve mails to single IMAP address. Usage: change False to "name@domain.com:password" of your main IMAP address
  -  `EMAIL_FOLDER = "" `  # skip for auto, folder where mails comes
  -  `IMAP_DOMAIN = "" `  # skip for auto domain, not always works
 - `ACCOUNTS_TO_WORK = False` # useful if you want to select specific accounts that have failed:
