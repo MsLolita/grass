@@ -22,8 +22,9 @@ class GrassWs:
 
         headers = {
             'Pragma': 'no-cache',
-            'Origin': 'chrome-extension://ilehaonighjijnmpnagapkhpcdbhclfg',
-            'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
+            'Accept-Language': 'en-US,en;q=0.9,uk;q=0.8,ru-RU;q=0.7,ru;q=0.6,en-GB;q=0.5,pl;q=0.4',
+            'Sec-WebSocket-Key': '9pviVQ2LanOjNPxF+2xA4Q==',
             'User-Agent': self.user_agent,
             'Upgrade': 'websocket',
             'Cache-Control': 'no-cache',
@@ -69,7 +70,8 @@ class GrassWs:
                     "user_agent": self.user_agent,
                     "timestamp": int(time.time()),
                     "device_type": "extension",
-                    "version": "3.3.2"
+                    "version": "4.26.2",
+                    "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
                 }
             }
         )
