@@ -5,12 +5,15 @@ from typing import Optional, Dict
 from imap_tools import MailBox, AND
 from loguru import logger
 
-from data.config import EMAIL_FOLDER, IMAP_DOMAIN
+from data.config import EMAIL_FOLDER, IMAP_DOMAIN, SINGLE_IMAP_ACCOUNT
 
 
 class MailUtils:
     def __init__(self, email: str, imap_pass: str) -> None:
-        self.email: str = email
+        if SINGLE_IMAP_ACCOUNT:
+            self.email: str = SINGLE_IMAP_ACCOUNT.split(":")[0]
+        else:
+            self.email: str = email
         self.imap_pass: str = imap_pass
         self.domain: str = IMAP_DOMAIN or self.parse_domain()
 

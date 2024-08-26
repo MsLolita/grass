@@ -2,11 +2,13 @@ THREADS = 1  # for register account / claim rewards mode / approve email mode
 MIN_PROXY_SCORE = 50  # for mining mode
 
 #########################################
-
 APPROVE_EMAIL = True  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
 CONNECT_WALLET = True  # connect wallet (put private keys in wallets.txt)
 SEND_WALLET_APPROVE_LINK_TO_EMAIL = True  # send approve link to email
 APPROVE_WALLET_ON_EMAIL = True  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
+
+# If you have possibility to forward all approve mails to single IMAP address:
+SINGLE_IMAP_ACCOUNT = False # usage "name@domain.com:password"
 
 # skip for auto chosen
 EMAIL_FOLDER = ""  # folder where mails comes
