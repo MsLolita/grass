@@ -121,7 +121,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                     if i:
                         self.fail_reset()
 
-                    await asyncio.sleep(19.9)
+                    await asyncio.sleep(random.randint(177, 179))
             except WebsocketClosedException as e:
                 logger.info(f"{self.id} | Websocket closed: {e}. Reconnecting...")
             except ConnectionResetError as e:

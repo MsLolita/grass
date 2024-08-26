@@ -18,7 +18,7 @@ class GrassWs:
         self.id = None
 
     async def connect(self):
-        uri = "wss://proxy.wynd.network:4444/"
+        uri = "wss://proxy2.wynd.network:4444/"
 
         headers = {
             'Pragma': 'no-cache',
