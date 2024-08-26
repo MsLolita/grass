@@ -31,6 +31,7 @@ class GrassWs:
             'Sec-WebSocket-Version': '13',
             'Sec-WebSocket-Extensions': 'permessage-deflate; client_max_window_bits',
         }
+
         try:
             self.websocket = await self.session.ws_connect(uri, proxy_headers=headers, proxy=self.proxy)
         except Exception as e:
