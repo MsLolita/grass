@@ -165,12 +165,12 @@ class GrassRest(BaseClient):
 
         res_json = await response.json()
         if res_json.get("error") is not None:
-            raise LoginException(f"{self.id} | Login stopped: {res_json['error']['message']}")
+            raise LoginException(f"Login stopped: {res_json['error']['message']}")
 
         if response.status == 403:
-            raise ProxyBlockedException(f"{self.id} | Login response: {await response.text()}")
+            raise ProxyBlockedException(f"Login response: {await response.text()}")
         if response.status != 200:
-            raise aiohttp.ClientConnectionError(f"{self.id} | Login response: | {await response.text()}")
+            raise aiohttp.ClientConnectionError(f"Login response: | {await response.text()}")
 
         return await response.json()
 
