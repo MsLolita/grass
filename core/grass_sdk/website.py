@@ -16,6 +16,9 @@ from core.utils.mail import MailUtils
 from core.utils.session import BaseClient
 from solders.keypair import Keypair
 
+from data.config import SEMI_AUTOMATIC_APPROVE_LINK
+
+
 try:
     from data.config import REF_CODE
 except ImportError:
@@ -276,9 +279,13 @@ Nonce: {timestamp}"""
 
     async def get_email_approve_token(self, imap_pass: str, email_subject: str) -> str:
         logger.info(f"{self.id} | {self.email} Getting email approve msg...")
-        mail_utils = MailUtils(self.email, imap_pass)
-        result = await mail_utils.get_msg_async(to=self.email, from_="support@wyndlabs.ai",
-                                                subject=email_subject)
+        if SEMI_AUTOMATIC_APPROVE_LINK:
+            result = {'success': True}
+            result['msg'] = input(f"Please, paste approve link from {self.email} and press Enter: ").strip()
+        else:
+            mail_utils = MailUtils(self.email, imap_pass)
+            result = await mail_utils.get_msg_async(to=self.email, from_="support@wynd.network",
+                                                    subject=email_subject)
 
         if result['success']:
             verify_token = result['msg'].split('token=')[1].split('/')[0]
