@@ -101,7 +101,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
                     await self.handle_proxy_score(MIN_PROXY_SCORE)
 
-                for i in range(999999999):
+                for i in range(10 ** 9):
                     await self.send_ping()
                     await self.send_pong()
 
