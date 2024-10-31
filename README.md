@@ -14,7 +14,7 @@ Also you can use for free [Nodepay+ bot](https://github.com/MsLolita/Nodepay_plu
 ### Also can be useful: [Grass Final Checker](https://github.com/MsLolita/Grass-Checker) or [Grass Claimer](https://github.com/MsLolita/Grass-Claimer)
 
 
-# Grass Auto Reger&Farm 🔹
+# 🔹Grass Auto Reger&Farm 🔹
 
 ![image](https://github.com/MsLolita/grass/assets/58307006/610b95b4-369f-4a71-ac24-f45e8dee6380)
 
