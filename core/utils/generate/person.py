@@ -7,8 +7,8 @@ from random_words import RandomNicknames  # pip install RandomWords
 
 class Person:
     def __init__(self):
-        self.username = RandomNicknames().random_nick(gender=random.choice(['f', 'm'])).lower() + \
-                        Person.random_string_old(3) + str(random.randint(1, 9))
+        self.username = RandomNicknames().random_nick(gender=random.choice(['f', 'm'])).lower()[:-random.randint(0, 2)] + \
+                        Person.random_string_old(random.randint(1, 5)) + str(random.randint(1, 999))
         self.first_name, self.last_name = names.get_full_name().split(" ")
 
     @staticmethod
