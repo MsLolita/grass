@@ -284,7 +284,7 @@ Nonce: {timestamp}"""
             result['msg'] = input(f"Please, paste approve link from {self.email} and press Enter: ").strip()
         else:
             mail_utils = MailUtils(self.email, imap_pass)
-            result = await mail_utils.get_msg_async(to=self.email, from_="support@wynd.network",
+            result = await mail_utils.get_msg_async(to=self.email, from_="no-reply@grassfoundation.io",
                                                     subject=email_subject)
 
         if result['success']:
