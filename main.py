@@ -17,7 +17,7 @@ from core.utils.exception import EmailApproveLinkNotFoundException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
-    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, SINGLE_IMAP_ACCOUNT
+    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, SINGLE_IMAP_ACCOUNT, SEMI_AUTOMATIC_APPROVE_LINK
 
 
 def bot_info(name: str = ""):
@@ -70,7 +70,9 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
                 if user_info['result']['data'].get("isVerified"):
                     logger.info(f"{grass.id} | {grass.email} email already verified!")
                 else:
-                    if imap_pass is None:
+                    if SEMI_AUTOMATIC_APPROVE_LINK:
+                        imap_pass = "placeholder"
+                    elif imap_pass is None:
                         raise TypeError("IMAP password is not provided")
                     await grass.confirm_email(imap_pass)
             if CONNECT_WALLET:
@@ -85,7 +87,9 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
                 if SEND_WALLET_APPROVE_LINK_TO_EMAIL:
                     await grass.send_approve_link(endpoint="sendWalletAddressEmailVerification")
                 if APPROVE_WALLET_ON_EMAIL:
-                    if imap_pass is None:
+                    if SEMI_AUTOMATIC_APPROVE_LINK:
+                        imap_pass = "placeholder"
+                    elif imap_pass is None:
                         raise TypeError("IMAP password is not provided")
                     await grass.confirm_wallet_by_email(imap_pass)
         elif CLAIM_REWARDS_ONLY:

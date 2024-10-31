@@ -55,6 +55,7 @@ Also you can use for free [Nodepay+ bot](https://github.com/MsLolita/Nodepay_plu
    - `APPROVE_WALLET_ON_EMAIL = True`  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
  - Provide emails and passwords and imap password (access to email) in format email:password:imap_password!
  - Need IMAP access to email
+ -  `SEMI_AUTOMATIC_APPROVE_LINK = False `  # If True, allows manual pasting of the approval link from the email to the CLI. All flags above need to be set to True. If you use this flag, you do not need to provide IMAP access
  -  `SINGLE_IMAP_ACCOUNT = False `  # if you have possibility to forward all approve mails to single IMAP address. Usage: change False to "name@domain.com:password" of your main IMAP address
  -  `EMAIL_FOLDER = "" `  # skip for auto, folder where mails comes
  -  `IMAP_DOMAIN = "" `  # skip for auto domain, not always works
