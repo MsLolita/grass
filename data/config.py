@@ -2,10 +2,10 @@ THREADS = 1  # for register account / claim rewards mode / approve email mode
 MIN_PROXY_SCORE = 50  # for mining mode
 
 #########################################
-APPROVE_EMAIL = True  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
-CONNECT_WALLET = True  # connect wallet (put private keys in wallets.txt)
-SEND_WALLET_APPROVE_LINK_TO_EMAIL = True  # send approve link to email
-APPROVE_WALLET_ON_EMAIL = True  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
+APPROVE_EMAIL = False  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
+CONNECT_WALLET = False  # connect wallet (put private keys in wallets.txt)
+SEND_WALLET_APPROVE_LINK_TO_EMAIL = False  # send approve link to email
+APPROVE_WALLET_ON_EMAIL = False  # get approve link from email (NEEDED IMAP AND ACCESS TO EMAIL)
 SEMI_AUTOMATIC_APPROVE_LINK = False # if True - allow to manual paste approve link from email to cli
 # If you have possibility to forward all approve mails to single IMAP address:
 SINGLE_IMAP_ACCOUNT = False # usage "name@domain.com:password"
@@ -23,7 +23,7 @@ CHECK_POINTS = False  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
-MINING_MODE = True  # False - not mine grass, True - mine grass
+MINING_MODE = True  # False - not mine grass, True - mine grass | Remove all True on approve \ register section
 
 # REGISTER PARAMETERS ONLY
 REGISTER_ACCOUNT_ONLY = False
