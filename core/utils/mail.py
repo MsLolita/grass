@@ -40,28 +40,32 @@ class MailUtils:
             delay: int = 60
     ) -> Dict[str, any]:
 
+        email_folder = ["INBOX"]
+
         if EMAIL_FOLDER:
-            email_folder = EMAIL_FOLDER
+            email_folder = [EMAIL_FOLDER]
         elif "outlook" in self.domain:
-            email_folder = "JUNK"
-        elif "rambler" in self.domain:
-            email_folder = "Spam"
+            email_folder.append("JUNK")
+        # elif "rambler" in self.domain:
         else:
-            email_folder = "INBOX"
+            email_folder.append("Spam")
 
-        with MailBox(self.domain).login(self.email, self.imap_pass, initial_folder=email_folder) as mailbox:
-            for _ in range(delay // 3):
-                time.sleep(3)
-                try:
-                    for msg in mailbox.fetch(AND(to=to, from_=from_, seen=seen), limit=limit, reverse=reverse):
-                        if subject is not None and msg.subject != subject:
-                            continue
+        time.sleep(3)
 
-                        logger.success(f'{self.email} | Successfully received msg: {msg.subject}')
-                        return {"success": True, "msg": msg.html}
-                except Exception as error:
-                    logger.error(f'{self.email} | Unexpected error when getting code: {str(error)}')
-        return {"success": False, "msg": "Didn't find msg"}
+        for _ in range(delay // 6):
+            time.sleep(3)
+            for folder in email_folder:  # to check Spam and Inbox folder and the same time
+                with MailBox(self.domain).login(self.email, self.imap_pass, initial_folder=folder) as mailbox:
+                        try:
+                            for msg in mailbox.fetch(AND(to=to, from_=from_, seen=seen), limit=limit, reverse=reverse):
+                                if subject is not None and msg.subject != subject:
+                                    continue
+
+                                logger.success(f'{self.email} | Successfully received msg: {msg.subject}')
+                                return {"success": True, "msg": msg.html}
+                        except Exception as error:
+                            logger.error(f'{self.email} | Unexpected error when getting code: {str(error)}')
+                return {"success": False, "msg": "Didn't find msg"}
 
     async def get_msg_async(
             self,
