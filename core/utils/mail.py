@@ -26,6 +26,8 @@ class MailUtils:
             domain = "firstmail.ltd"
         elif any(sub in domain for sub in ["rambler", "myrambler", "autorambler", "ro.ru"]):
             domain = "rambler.ru"
+        elif "icloud" in domain:
+            domain = "mail.me.com"
 
         return f"imap.{domain}"
 

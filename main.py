@@ -5,6 +5,7 @@ import sys
 import traceback
 
 from art import text2art
+from imap_tools import MailboxLoginError
 from termcolor import colored, cprint
 
 from better_proxy import Proxy
@@ -13,7 +14,7 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
-from core.utils.exception import EmailApproveLinkNotFoundException
+from core.utils.exception import EmailApproveLinkNotFoundException, LoginException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
@@ -98,8 +99,10 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
             await grass.start()
 
         return True
-    # except LoginException as e:
-    #     logger.warning(f"LoginException | {_id} | {e}")
+    except LoginException as e:
+        logger.warning(f"{_id} | {e}")
+    except MailboxLoginError as e:
+        logger.error(f"{_id} | {e}")
     # except NoProxiesException as e:
     #     logger.warning(e)
     except EmailApproveLinkNotFoundException as e:
