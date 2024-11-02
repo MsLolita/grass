@@ -253,8 +253,8 @@ Nonce: {timestamp}"""
             stop=stop_after_attempt(3),
             wait=wait_random(5, 7),
             reraise=True,
-            before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to send link wallet... "
-                                                                   f"Continue..."),
+            before_sleep=lambda retry_state, **kwargs: logger.info(
+                f"{self.id} | Retrying to send link wallet... Continue..."),
         )
         async def linking_wallet():
             url = 'https://api.getgrass.io/verifySignedMessage'
@@ -272,8 +272,19 @@ Nonce: {timestamp}"""
 
             response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy, json=json_data)
             response_data = await response.json()
-            assert response_data.get("result") == {}
-            logger.info(f"{self.id} | {self.email} wallet linked!")
+
+            if response_data.get("result") == {}:
+                logger.info(f"{self.id} | {self.email} wallet linked successfully!")
+                return {"success": True}
+            elif response_data.get("error") and response_data["error"]["code"] == -32600:
+                # Якщо гаманець уже використовується іншим користувачем
+                error_message = response_data["error"]["message"]
+                logger.warning(f"{self.id} | Wallet approval failed: {error_message}")
+                return {"success": False, "msg": error_message}
+            else:
+                # Вивести помилку для випадків, які не були оброблені
+                logger.error(f"{self.id} | Unexpected response structure: {response_data}")
+                return {"success": False, "msg": "Unexpected response from server"}
 
         return await linking_wallet()
 
@@ -284,8 +295,8 @@ Nonce: {timestamp}"""
             result['msg'] = input(f"Please, paste approve link from {self.email} and press Enter: ").strip()
         else:
             mail_utils = MailUtils(self.email, imap_pass)
-            result = await mail_utils.get_msg_async(to=self.email, from_="no-reply@grassfoundation.io",
-                                                    subject=email_subject)
+            result = await mail_utils.get_msg_async(subject=email_subject, delay=60)
+
 
         if result['success']:
             verify_token = result['msg'].split('token=')[1].split('/')[0]
@@ -347,7 +358,7 @@ Nonce: {timestamp}"""
         device_info = await self.get_device_info(device_id, user_id)
         return device_info['data']['final_score']
 
-    async def get_json_params(self, params, user_referral: str, main_referral: str = "erxggzon61FWrJ9",
+    async def get_json_params(self, params, user_referral: str, main_referral: str = "Xvzy5Y8BKNvErBX",
                               role_stable: str = "726566657272616c"):
         self.username = Person().username
 

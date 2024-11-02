@@ -1,6 +1,7 @@
 import time
 import asyncio
 from typing import Optional, Dict
+from datetime import datetime, timedelta, timezone
 
 from imap_tools import MailBox, AND
 from loguru import logger
@@ -33,67 +34,60 @@ class MailUtils:
 
     def get_msg(
             self,
-            to: Optional[str] = None,
             subject: Optional[str] = None,
+            to: Optional[str] = None,
             from_: Optional[str] = None,
-            seen: Optional[bool] = None,
-            limit: Optional[int] = None,
-            reverse: bool = True,
             delay: int = 60
     ) -> Dict[str, any]:
 
         email_folder = ["INBOX"]
-
         if EMAIL_FOLDER:
             email_folder = [EMAIL_FOLDER]
         elif "outlook" in self.domain:
             email_folder.append("JUNK")
-        # elif "rambler" in self.domain:
         else:
             email_folder.append("Spam")
 
-        time.sleep(3)
+        # Фіксуємо час початку для фільтру нових листів з таймзоною
+        start_time = datetime.now(timezone.utc) - timedelta(seconds=5)
+        end_time = time.time() + delay
 
-        for _ in range(delay // 6):
-            time.sleep(3)
-            for folder in email_folder:  # to check Spam and Inbox folder and the same time
+        while time.time() < end_time:
+            for folder in email_folder:
                 with MailBox(self.domain).login(self.email, self.imap_pass, initial_folder=folder) as mailbox:
-                        try:
-                            for msg in mailbox.fetch(AND(to=to, from_=from_, seen=seen), limit=limit, reverse=reverse):
-                                if subject is not None and msg.subject != subject:
-                                    continue
+                    try:
+                        # Шукаємо тільки нові непрочитані повідомлення за темою, адресою одержувача, відправником і часом
+                        criteria = AND(subject=subject, to=to, from_=from_, seen=False)
+                        for msg in mailbox.fetch(criteria, limit=1, reverse=True):
+                            # Перевіряємо, чи повідомлення прийшло після початку очікування
+                            if msg.date > start_time:
+                                logger.success(f'{self.email} | Successfully found new msg by subject: {msg.subject}')
+                                return {
+                                    "success": True,
+                                    "msg": msg.html,
+                                    "subject": msg.subject,
+                                    "from": msg.from_,
+                                    "to": msg.to
+                                }
+                    except Exception as error:
+                        logger.error(f'{self.email} | Error when fetching new message by subject: {str(error)}')
 
-                                logger.success(f'{self.email} | Successfully received msg: {msg.subject}')
-                                return {"success": True, "msg": msg.html}
-                        except Exception as error:
-                            logger.error(f'{self.email} | Unexpected error when getting code: {str(error)}')
-                return {"success": False, "msg": "Didn't find msg"}
+
+            time.sleep(5)
+
+        return {"success": False, "msg": "New message not found by subject"}
 
     async def get_msg_async(
             self,
-            to: Optional[str] = None,
             subject: Optional[str] = None,
+            to: Optional[str] = None,
             from_: Optional[str] = None,
-            seen: Optional[bool] = None,
-            limit: Optional[int] = None,
-            reverse: bool = True,
             delay: int = 60
     ) -> Dict[str, any]:
-        return await asyncio.to_thread(self.get_msg, to, subject, from_, seen, limit, reverse, delay)
-
-
-# if __name__ == '__main__':
-#     email = ""
-#     imap_pass = ""
-#     mail_utils = MailUtils(email, imap_pass)
-#
-#     # Asynchronous call
-#     async def main():
-#         result = await mail_utils.get_msg_async(to=email, from_="support@wynd.network", subject="Verify Your Email for Grass")
-#         print(result)
-#         if result['success']:
-#             verify_link = result['msg'].split('<![endif]-->\r\n    <a href="')[1].split('"')[0]
-#             print(verify_link)
-#
-#
-#     asyncio.run(main())
+        return await asyncio.to_thread(
+            self.get_msg,
+            subject=subject,
+            to=to,
+            from_=from_,
+            delay=delay
+        )
