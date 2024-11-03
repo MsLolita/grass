@@ -1,5 +1,6 @@
 import time
 import asyncio
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict
 
 from imap_tools import MailBox, AND
@@ -52,22 +53,30 @@ class MailUtils:
         else:
             email_folder.append("Spam")
 
-        time.sleep(3)
 
-        for _ in range(delay // 6):
-            time.sleep(3)
-            for folder in email_folder:  # to check Spam and Inbox folder and the same time
+        start_time = datetime.now(timezone.utc) - timedelta(seconds=5)
+        end_time = time.time() + delay
+
+        while time.time() < end_time:
+            time.sleep(5)
+            for folder in email_folder:
                 with MailBox(self.domain).login(self.email, self.imap_pass, initial_folder=folder) as mailbox:
-                        try:
-                            for msg in mailbox.fetch(AND(to=to, from_=from_, seen=seen), limit=limit, reverse=reverse):
-                                if subject is not None and msg.subject != subject:
-                                    continue
+                    try:
+                        criteria = AND(subject=subject, to=to, from_=from_, seen=seen)
+                        for msg in mailbox.fetch(criteria, limit=limit, reverse=reverse):
+                            if msg.date > start_time:
+                                logger.success(f'{self.email} | Successfully found new msg by subject: {msg.subject}')
+                                return {
+                                    "success": True,
+                                    "msg": msg.html,
+                                    "subject": msg.subject,
+                                    "from": msg.from_,
+                                    "to": msg.to
+                                }
+                    except Exception as error:
+                        logger.error(f'{self.email} | Error when fetching new message by subject: {str(error)}')
 
-                                logger.success(f'{self.email} | Successfully received msg: {msg.subject}')
-                                return {"success": True, "msg": msg.html}
-                        except Exception as error:
-                            logger.error(f'{self.email} | Unexpected error when getting code: {str(error)}')
-                return {"success": False, "msg": "Didn't find msg"}
+        return {"success": False, "msg": "New message not found by subject"}
 
     async def get_msg_async(
             self,

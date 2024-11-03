@@ -272,20 +272,29 @@ Nonce: {timestamp}"""
 
             response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy, json=json_data)
             response_data = await response.json()
-            assert response_data.get("result") == {}
-            logger.info(f"{self.id} | {self.email} wallet linked!")
+
+            if response_data.get("result") == {}:
+                logger.info(f"{self.id} | {self.email} wallet linked successfully!")
+                return {"success": True}
+            elif response_data.get("error") and response_data["error"]["code"] == -32600:
+                error_message = response_data["error"]["message"]
+                logger.warning(f"{self.id} | Wallet approval failed: {error_message}")
+                return {"success": False, "msg": error_message}
+            else:
+                logger.error(f"{self.id} | Unexpected response structure: {response_data}")
+                return {"success": False, "msg": "Unexpected response from server"}
 
         return await linking_wallet()
 
     async def get_email_approve_token(self, imap_pass: str, email_subject: str) -> str:
         logger.info(f"{self.id} | {self.email} Getting email approve msg...")
         if SEMI_AUTOMATIC_APPROVE_LINK:
-            result = {'success': True}
-            result['msg'] = input(f"Please, paste approve link from {self.email} and press Enter: ").strip()
+            result = {'success': True,
+                      'msg': input(f"Please, paste approve link from {self.email} and press Enter: ").strip()}
         else:
             mail_utils = MailUtils(self.email, imap_pass)
-            result = await mail_utils.get_msg_async(to=self.email, from_="no-reply@grassfoundation.io",
-                                                    subject=email_subject)
+            result = await mail_utils.get_msg_async(to=self.email, #from_="no-reply@grassfoundation.io",
+                                                    subject=email_subject, delay=60)
 
         if result['success']:
             verify_token = result['msg'].split('token=')[1].split('/')[0]
