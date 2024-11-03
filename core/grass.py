@@ -99,7 +99,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 if self.proxy_score is None:
                     await asyncio.sleep(1)
 
-                    await self.handle_proxy_score(MIN_PROXY_SCORE)
+                    if MIN_PROXY_SCORE:
+                        await self.handle_proxy_score(MIN_PROXY_SCORE)
 
                 for i in range(10 ** 9):
                     await self.send_ping()
