@@ -1,5 +1,5 @@
 THREADS = 5  # for register account / claim rewards mode / approve email mode
-MIN_PROXY_SCORE = 50  # for mining mode
+MIN_PROXY_SCORE = 0  # for mining mode
 
 #########################################
 APPROVE_EMAIL = False  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
@@ -18,7 +18,7 @@ IMAP_DOMAIN = ""  # not always works
 
 CLAIM_REWARDS_ONLY = False  # claim tiers rewards only (https://app.getgrass.io/dashboard/referral-program)
 
-STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
+STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = False  # stop account for 20 minutes, to reduce proxy traffic usage
 CHECK_POINTS = False  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
@@ -29,8 +29,8 @@ MINING_MODE = True  # False - not mine grass, True - mine grass | Remove all Tru
 REGISTER_ACCOUNT_ONLY = False
 REGISTER_DELAY = (3, 7)
 
-TWO_CAPTCHA_API_KEY = ""
-ANTICAPTCHA_API_KEY = ""
+TWO_CAPTCHA_API_KEY = "c4bf076d2f0dcaff5acf65efb8e5a0b6"
+ANTICAPTCHA_API_KEY = "de7aa4cd826e382ef84e4dc648f957d0"
 CAPMONSTER_API_KEY = ""
 CAPSOLVER_API_KEY = ""
 CAPTCHAAI_API_KEY = ""
