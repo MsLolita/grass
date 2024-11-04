@@ -3,20 +3,23 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict
 
-from imap_tools import MailBox, AND
+from imap_tools import AND #, MailBox
 from loguru import logger
 
-from data.config import EMAIL_FOLDER, IMAP_DOMAIN, SINGLE_IMAP_ACCOUNT
+from core.utils.mail.mailbox import MailBox
+from data.config import EMAIL_FOLDER, IMAP_DOMAIN, SINGLE_IMAP_ACCOUNT, USE_PROXY_FOR_IMAP
 
 
 class MailUtils:
-    def __init__(self, email: str, imap_pass: str) -> None:
+    def __init__(self, email: str, imap_pass: str, proxy: str = None) -> None:
         if SINGLE_IMAP_ACCOUNT:
             self.email: str = SINGLE_IMAP_ACCOUNT.split(":")[0]
         else:
             self.email: str = email
         self.imap_pass: str = imap_pass
         self.domain: str = IMAP_DOMAIN or self.parse_domain()
+
+        self.proxy = proxy if USE_PROXY_FOR_IMAP else None
 
     def parse_domain(self) -> str:
         domain: str = self.email.split("@")[-1]
@@ -60,7 +63,10 @@ class MailUtils:
         while time.time() < end_time:
             time.sleep(5)
             for folder in email_folder:
-                with MailBox(self.domain).login(self.email, self.imap_pass, initial_folder=folder) as mailbox:
+                with MailBox(
+                        self.domain,
+                        proxy=self.proxy
+                ).login(self.email, self.imap_pass, initial_folder=folder) as mailbox:
                     try:
                         criteria = AND(subject=subject, to=to, from_=from_, seen=seen)
                         for msg in mailbox.fetch(criteria, limit=limit, reverse=reverse):

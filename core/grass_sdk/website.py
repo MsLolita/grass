@@ -14,7 +14,7 @@ from core.utils.captcha_service import CaptchaService
 from core.utils.exception import LoginException, ProxyBlockedException, EmailApproveLinkNotFoundException, \
     RegistrationException
 from core.utils.generate.person import Person
-from core.utils.mail import MailUtils
+from core.utils.mail.mail import MailUtils
 from core.utils.session import BaseClient
 from solders.keypair import Keypair
 
@@ -293,7 +293,7 @@ Nonce: {timestamp}"""
             result = {'success': True,
                       'msg': input(f"Please, paste approve link from {self.email} and press Enter: ").strip()}
         else:
-            mail_utils = MailUtils(self.email, imap_pass)
+            mail_utils = MailUtils(self.email, imap_pass, self.proxy)
             result = await mail_utils.get_msg_async(to=self.email, #from_="no-reply@grassfoundation.io",
                                                     subject=email_subject, delay=60)
 

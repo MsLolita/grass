@@ -15,7 +15,6 @@ EMAIL_FOLDER = ""  # folder where mails comes
 IMAP_DOMAIN = ""  # not always works
 
 #########################################
-
 CLAIM_REWARDS_ONLY = False  # claim tiers rewards only (https://app.getgrass.io/dashboard/referral-program)
 
 STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
@@ -34,6 +33,9 @@ ANTICAPTCHA_API_KEY = ""
 CAPMONSTER_API_KEY = ""
 CAPSOLVER_API_KEY = ""
 CAPTCHAAI_API_KEY = ""
+
+# Use proxy also for mail handling
+USE_PROXY_FOR_IMAP = False
 
 # Captcha params, left empty
 CAPTCHA_PARAMS = {
