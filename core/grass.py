@@ -118,11 +118,11 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                         logger.info(f"{self.id} | Total points: {points}")
                     if not (i % 1000):
                         total_points = await self.db.get_total_points()
-                        logger.info(f"Total points in database: {total_points}")
+                        logger.info(f"Total points in database: {total_points or 0}")
                     if i:
                         self.fail_reset()
 
-                    await asyncio.sleep(random.randint(177, 179))
+                    await asyncio.sleep(random.randint(119, 120))
             except WebsocketClosedException as e:
                 logger.info(f"{self.id} | Websocket closed: {e}. Reconnecting...")
             except ConnectionResetError as e:

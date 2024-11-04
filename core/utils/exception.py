@@ -51,3 +51,7 @@ class SiteIsDownException(Exception):
 
 class EmailApproveLinkNotFoundException(Exception):
     pass
+
+
+class RegistrationException(Exception):
+    pass

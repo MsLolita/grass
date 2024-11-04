@@ -14,7 +14,7 @@ from core import Grass
 from core.autoreger import AutoReger
 from core.utils import logger, file_to_list
 from core.utils.accounts_db import AccountsDB
-from core.utils.exception import EmailApproveLinkNotFoundException, LoginException
+from core.utils.exception import EmailApproveLinkNotFoundException, LoginException, RegistrationException
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
@@ -99,7 +99,7 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
             await grass.start()
 
         return True
-    except LoginException as e:
+    except (LoginException, RegistrationException) as e:
         logger.warning(f"{_id} | {e}")
     except MailboxLoginError as e:
         logger.error(f"{_id} | {e}")
@@ -116,6 +116,11 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
 
 async def main():
     accounts = file_to_list(ACCOUNTS_FILE_PATH)
+
+    if not accounts:
+        logger.warning("No accounts found!")
+        return
+
     proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
 
     db = AccountsDB('data/proxies_stats.db')
