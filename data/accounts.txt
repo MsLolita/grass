@@ -2,4 +2,6 @@ kolya_volohay1@gmail.com:bsdRsdssddG3%
 kolya_volohay2@gmail.com:bsdRsdssddG3%
 kolya_volohay3@gmail.com:bsdRsdssddG3%
 kolya_volohay4@gmail.com:bsdRsdssddG3%
-kolya_volohay5@gmail.com:bsdRsdssddG3%
+kolya_volohay5@gmail.com:bsdRsdssddG3%)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose     <
+: curl: inaccessible or not found
+127|:/data/user/0/com.server.auditor.ssh.client/files/private $
