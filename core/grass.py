@@ -88,7 +88,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
             await self.change_proxy()
             logger.info(f"{self.id} | Changed proxy to {self.proxy}. {msg}. Retrying...")
 
-            await asyncio.sleep(random.uniform(20, 30))
+            await asyncio.sleep(random.uniform(20, 21))
 
     async def run(self, browser_id: str, user_id: str):
         while True:
