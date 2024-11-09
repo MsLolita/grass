@@ -27,8 +27,8 @@ Also you can use for free [Nodepay+ bot](https://github.com/MsLolita/Nodepay_plu
 
 > You can put as many proxies as u can, bot uses database and will load up proxies from extra ones
 
-🔹**To say thanks for work: 0x000007c73a94f8582ef95396918dcd04f806cdd8**
 
+To hang several connections on 1 account, you just need to duplicate it in the accounts.txt.
 
 ## Quick Start 📚
    1. To install libraries on Windows click on `INSTALL.bat` (or in console: `pip install -r requirements.txt`).

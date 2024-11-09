@@ -1,5 +1,6 @@
 import asyncio
 import ctypes
+import os
 import random
 import sys
 import traceback
@@ -18,7 +19,8 @@ from core.utils.exception import EmailApproveLinkNotFoundException, LoginExcepti
 from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
-    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, SINGLE_IMAP_ACCOUNT, SEMI_AUTOMATIC_APPROVE_LINK
+    WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, SINGLE_IMAP_ACCOUNT, SEMI_AUTOMATIC_APPROVE_LINK, \
+    PROXY_DB_PATH
 
 
 def bot_info(name: str = ""):
@@ -123,7 +125,11 @@ async def main():
 
     proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
 
-    db = AccountsDB('data/proxies_stats.db')
+    # delete DB if it exists to clean up
+    if os.path.exists(PROXY_DB_PATH):
+        os.remove(PROXY_DB_PATH)
+
+    db = AccountsDB(PROXY_DB_PATH)
     await db.connect()
 
     for i, account in enumerate(accounts):
@@ -157,6 +163,10 @@ async def main():
             elif len(wallets) != len(accounts):
                 logger.error("Wallets count != accounts count")
                 return
+        elif len(accounts[0].split(":")) != 3:
+            logger.error("For __APPROVE__ mode: Need to provide email, password and imap password - email:password:imap_password")
+            return
+
         msg = "__APPROVE__ MODE"
     elif CLAIM_REWARDS_ONLY:
         msg = "__CLAIM__ MODE"

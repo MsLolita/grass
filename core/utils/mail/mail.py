@@ -26,12 +26,22 @@ class MailUtils:
 
         if "hotmail" in domain or "live" in domain:
             domain = "outlook.com"
+        elif "yahoo" in domain:
+            domain = "mail.yahoo.com"
         elif "firstmail" in domain:
             domain = "firstmail.ltd"
         elif any(sub in domain for sub in ["rambler", "myrambler", "autorambler", "ro.ru"]):
             domain = "rambler.ru"
         elif "icloud" in domain:
             domain = "mail.me.com"
+        elif "gazeta" in domain:
+            domain = "gazeta.pl"
+        elif "onet" in domain:
+            domain = "poczta.onet.pl"
+        elif "gmx" in domain:
+            domain = "gmx.net"
+        elif "firemail" in domain:
+            domain = "firemail.de"
 
         return f"imap.{domain}"
 
@@ -46,41 +56,37 @@ class MailUtils:
             delay: int = 60
     ) -> Dict[str, any]:
 
-        email_folder = ["INBOX"]
 
         if EMAIL_FOLDER:
-            email_folder = [EMAIL_FOLDER]
-        elif "outlook" in self.domain:
-            email_folder.append("JUNK")
-        # elif "rambler" in self.domain:
+            email_folders = [EMAIL_FOLDER]
         else:
-            email_folder.append("Spam")
+            email_folders = ["INBOX", "Junk", "JUNK", "Spam", "SPAM", "TRASH", "Trash"]
 
+        with MailBox(
+                self.domain,
+                proxy=self.proxy
+        ).login(self.email, self.imap_pass, initial_folder=None) as mailbox:
+            actual_folders = [mailbox.name for mailbox in list(mailbox.folder.list())]
+            folders = [folder for folder in email_folders if folder in actual_folders]
 
-        start_time = datetime.now(timezone.utc) - timedelta(seconds=5)
-        end_time = time.time() + delay
-
-        while time.time() < end_time:
-            time.sleep(5)
-            for folder in email_folder:
-                with MailBox(
-                        self.domain,
-                        proxy=self.proxy
-                ).login(self.email, self.imap_pass, initial_folder=folder) as mailbox:
-                    try:
+            for _ in range(delay // 3):
+                time.sleep(3)
+                try:
+                    for folder in folders:
+                        mailbox.folder.set(folder)
                         criteria = AND(subject=subject, to=to, from_=from_, seen=seen)
+
                         for msg in mailbox.fetch(criteria, limit=limit, reverse=reverse):
-                            if msg.date > start_time:
-                                logger.success(f'{self.email} | Successfully found new msg by subject: {msg.subject}')
-                                return {
-                                    "success": True,
-                                    "msg": msg.html,
-                                    "subject": msg.subject,
-                                    "from": msg.from_,
-                                    "to": msg.to
-                                }
-                    except Exception as error:
-                        logger.error(f'{self.email} | Error when fetching new message by subject: {str(error)}')
+                            logger.success(f'{self.email} | Successfully found new msg by subject: {msg.subject}')
+                            return {
+                                "success": True,
+                                "msg": msg.html,
+                                "subject": msg.subject,
+                                "from": msg.from_,
+                                "to": msg.to
+                            }
+                except Exception as error:
+                    logger.error(f'{self.email} | Error when fetching new message by subject: {str(error)}')
 
         return {"success": False, "msg": "New message not found by subject"}
 

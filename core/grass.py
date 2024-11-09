@@ -116,9 +116,9 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                         points = await self.get_points_handler()
                         await self.db.update_or_create_point_stat(self.id, self.email, points)
                         logger.info(f"{self.id} | Total points: {points}")
-                    if not (i % 1000):
-                        total_points = await self.db.get_total_points()
-                        logger.info(f"Total points in database: {total_points or 0}")
+                    # if not (i % 1000):
+                    #     total_points = await self.db.get_total_points()
+                    #     logger.info(f"Total points in database: {total_points or 0}")
                     if i:
                         self.fail_reset()
 

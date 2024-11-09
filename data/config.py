@@ -11,14 +11,14 @@ SEMI_AUTOMATIC_APPROVE_LINK = False # if True - allow to manual paste approve li
 SINGLE_IMAP_ACCOUNT = False # usage "name@domain.com:password"
 
 # skip for auto chosen
-EMAIL_FOLDER = ""  # folder where mails comes
-IMAP_DOMAIN = ""  # not always works
+EMAIL_FOLDER = ""  # folder where mails comes (example: SPAM INBOX JUNK etc.)
+IMAP_DOMAIN = ""  # imap server domain (example: imap.firstmail.ltd for firstmail)
 
 #########################################
 CLAIM_REWARDS_ONLY = False  # claim tiers rewards only (https://app.getgrass.io/dashboard/referral-program)
 
 STOP_ACCOUNTS_WHEN_SITE_IS_DOWN = True  # stop account for 20 minutes, to reduce proxy traffic usage
-CHECK_POINTS = False  # show point for each account every nearly 10 minutes
+CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
@@ -50,3 +50,4 @@ CAPTCHA_PARAMS = {
 ACCOUNTS_FILE_PATH = "data/accounts.txt"
 PROXIES_FILE_PATH = "data/proxies.txt"
 WALLETS_FILE_PATH = "data/wallets.txt"
+PROXY_DB_PATH = 'data/proxies_stats.db'

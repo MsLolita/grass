@@ -57,7 +57,8 @@ class GrassRest(BaseClient):
                                                                                                               REF_CODE),
                                            proxy=self.proxy)
         if response.status != 200 or "error" in await response.text():
-            if "Email Already Registered" in await response.text():
+            if "Email Already Registered" in await response.text() or \
+                "Your registration could not be completed at this time." in await response.text():
                 logger.info(f"{self.email} | Email already registered!")
                 return
             elif "Gateway" in await response.text():
@@ -136,6 +137,8 @@ class GrassRest(BaseClient):
         if points is not None:
             return points
         elif points := res_json.get('error', {}).get('message'):
+            if points == "User epoch earning not found.":
+                return 0
             return points
         else:
             return "Can't get points."
@@ -288,21 +291,24 @@ Nonce: {timestamp}"""
         return await linking_wallet()
 
     async def get_email_approve_token(self, imap_pass: str, email_subject: str) -> str:
-        logger.info(f"{self.id} | {self.email} Getting email approve msg...")
-        if SEMI_AUTOMATIC_APPROVE_LINK:
-            result = {'success': True,
-                      'msg': input(f"Please, paste approve link from {self.email} and press Enter: ").strip()}
-        else:
-            mail_utils = MailUtils(self.email, imap_pass, self.proxy)
-            result = await mail_utils.get_msg_async(to=self.email, #from_="no-reply@grassfoundation.io",
-                                                    subject=email_subject, delay=60)
+        try:
+            logger.info(f"{self.id} | {self.email} Getting email approve msg...")
+            if SEMI_AUTOMATIC_APPROVE_LINK:
+                result = {'success': True,
+                          'msg': input(f"Please, paste approve link from {self.email} and press Enter: ").strip()}
+            else:
+                mail_utils = MailUtils(self.email, imap_pass, self.proxy)
+                result = await mail_utils.get_msg_async(to=self.email, #from_="no-reply@grassfoundation.io",
+                                                        subject=email_subject, delay=60)
 
-        if result['success']:
-            verify_token = result['msg'].split('token=')[1].split('/')[0]
-            return verify_token
-        else:
-            raise EmailApproveLinkNotFoundException(
-                f"{self.id} | {self.email} Email approve link not found for minute! Exited!")
+            if result['success']:
+                verify_token = result['msg'].split('token=')[1].split('/')[0]
+                return verify_token
+            else:
+                raise EmailApproveLinkNotFoundException(
+                    f"{self.id} | {self.email} Email approve link not found for minute! Exited!")
+        except Exception as e:
+            raise EmailApproveLinkNotFoundException(f"{self.id} | {self.email} | Email approve: {e}")
 
     async def get_browser_id(self):
         res_json = await self.get_user_info()
