@@ -44,7 +44,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.is_extra_proxies_left: bool = True
 
         self.fail_count = 0
-        self.limit = 5
+        self.limit = 7
 
     async def start(self):
         self.proxies = await self.db.get_proxies_by_email(self.email)
