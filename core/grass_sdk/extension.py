@@ -1,5 +1,6 @@
 import json
 import time
+from random import choice
 
 from aiohttp import WSMsgType
 
@@ -18,13 +19,14 @@ class GrassWs:
         self.id = None
 
     async def connect(self):
-        uri = "wss://proxy2.wynd.network:4650/"
+        connection_port = ["4444", "4650"]
+        uri = f"wss://proxy2.wynd.network:{choice(connection_port)}/"
 
         headers = {
             'Pragma': 'no-cache',
             'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
-            'Accept-Language': 'en-US,en;q=0.9,uk;q=0.8,ru-RU;q=0.7,ru;q=0.6,en-GB;q=0.5,pl;q=0.4',
-            'Sec-WebSocket-Key': '9pviVQ2LanOjNPxF+2xA4Q==',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Sec-WebSocket-Key': '94BKvjUp/+zImAvhNQWT3w==',
             'User-Agent': self.user_agent,
             'Upgrade': 'websocket',
             'Cache-Control': 'no-cache',

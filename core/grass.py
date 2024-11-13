@@ -47,7 +47,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         self.limit = 7
 
     async def start(self):
-        self.proxies = await self.db.get_proxies_by_email(self.email)
+        if self.db:
+            self.proxies = await self.db.get_proxies_by_email(self.email)
         self.log_global_count(True)
         # logger.info(f"{self.id} | {self.email} | Starting...")
         while True:
@@ -123,15 +124,15 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                         self.fail_reset()
 
                     await asyncio.sleep(random.randint(119, 120))
-            except WebsocketClosedException as e:
-                logger.info(f"{self.id} | Websocket closed: {e}. Reconnecting...")
-            except ConnectionResetError as e:
-                logger.info(f"{self.id} | Connection reset: {e}. Reconnecting...")
-            except TypeError as e:
-                logger.info(f"{self.id} | Type error: {e}. Reconnecting...")
-                await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay for some minutes...", sleep_time=60)
+            except (WebsocketClosedException, ConnectionResetError, TypeError) as e:
+                logger.info(f"{self.id} | {type(e).__name__}: {e}. Reconnecting...")
+            # except ConnectionResetError as e:
+            #     logger.info(f"{self.id} | Connection reset: {e}. Reconnecting...")
+            # except TypeError as e:
+            #     logger.info(f"{self.id} | Type error: {e}. Reconnecting...")
+                # await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay for some minutes...", sleep_time=60)
 
-            await self.failure_handler(limit=4)
+            await self.failure_handler(limit=2)
 
             await asyncio.sleep(5, 10)
 
@@ -141,7 +142,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
         logger.info(f"{self.id} | Claimed all rewards.")
 
-    @retry(stop=stop_after_attempt(12),
+    @retry(stop=stop_after_attempt(7),
            retry=(retry_if_exception_type(ConnectionError) | retry_if_not_exception_type(ProxyForbiddenException)),
            retry_error_callback=lambda retry_state:
            raise_error(WebsocketConnectionFailedError(f"{retry_state.outcome.exception()}")),
