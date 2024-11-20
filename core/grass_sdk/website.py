@@ -213,7 +213,10 @@ class GrassRest(BaseClient):
                 url, headers=self.website_headers, proxy=self.proxy, data=json.dumps(json_data)
             )
             response_data = await response.json()
-            assert response_data.get("result") == {}
+
+            if response_data.get("result") != {}:
+                raise Exception(response_data)
+
             logger.debug(f"{self.id} | {self.email} Sent approve link")
 
         return await approve_email_retry()
@@ -235,7 +238,9 @@ class GrassRest(BaseClient):
                 url, headers=headers, proxy=self.proxy
             )
             response_data = await response.json()
-            assert response_data.get("result") == {}
+
+            if response_data.get("result") != {}:
+                raise Exception(response_data)
 
         return await approve_email_retry()
 
