@@ -1,5 +1,3 @@
-6c6fc8a8b0731bc9:RNW78Fm5@res.proxy-seller.com:10999
-6c6fc8a8b0731bc9:RNW78Fm5@res.proxy-seller.com:10998
-6c6fc8a8b0731bc9:RNW78Fm5@res.proxy-seller.com:10997
-6c6fc8a8b0731bc9:RNW78Fm5@res.proxy-seller.com:10996
-6c6fc8a8b0731bc9:RNW78Fm5@res.proxy-seller.com:10995
+http://45.43.62.180:16666:aoqnyjvetzyqrga88644-session-INjiFUWo-sessTime-3600:uklujbgtsr
+http://45.43.62.180:16666:aoqnyjvetzyqrga88644-session-iErOomPj-sessTime-3600:uklujbgtsr
+http://45.43.62.180:16666:aoqnyjvetzyqrga88644-session-dVGO4aYT-sessTime-3600:uklujbgtsr
