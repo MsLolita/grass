@@ -6,6 +6,7 @@ out
 gen
 /logs
 /test
+/data
 
 ### venv template
 # Virtualenv
