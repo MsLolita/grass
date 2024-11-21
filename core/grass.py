@@ -4,6 +4,7 @@ import uuid
 from typing import List, Optional
 
 import aiohttp
+from curl_cffi.requests import AsyncSession
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
@@ -37,8 +38,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
         self.db: AccountsDB = db
 
-        self.session: aiohttp.ClientSession = aiohttp.ClientSession(trust_env=True,
-                                                                    connector=aiohttp.TCPConnector(ssl=False))
+        self.session = AsyncSession(verify=False, trust_env=True)
+        self.ws_session = aiohttp.ClientSession(trust_env=True, connector=aiohttp.TCPConnector(ssl=False))
 
         self.proxies: List[str] = []
         self.is_extra_proxies_left: bool = True
