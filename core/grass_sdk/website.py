@@ -56,14 +56,14 @@ class GrassRest(BaseClient):
         response = await self.session.post(url, headers=self.website_headers, json=await self.get_json_params(params,
                                                                                                               REF_CODE),
                                            proxy=self.proxy)
-        if response.status != 200 or "error" in await response.text():
-            if "Email Already Registered" in await response.text() or \
-                "Your registration could not be completed at this time." in await response.text():
+        if response.status_code != 200 or "error" in response.text:
+            if "Email Already Registered" in response.text or \
+                "Your registration could not be completed at this time." in response.text:
                 logger.info(f"{self.email} | Email already registered!")
                 return
-            elif "Gateway" in await response.text():
+            elif "Gateway" in response.text:
                 raise RegistrationException(f"{self.id} | Create acc response: | html 504 gateway error")
-            error_msg = (await response.json())['error']['message']
+            error_msg = (response.json())['error']['message']
 
             raise RegistrationException(f"Create acc response: | {error_msg}")
 
@@ -72,7 +72,7 @@ class GrassRest(BaseClient):
         with open("logs/new_accounts.txt", "a", encoding="utf-8") as f:
             f.write(f"{self.email}:{self.password}:{self.username}\n")
 
-        return await response.json()
+        return response.json()
 
     async def enter_account(self):
         res_json = await self.handle_login()
@@ -88,7 +88,7 @@ class GrassRest(BaseClient):
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
-        return await response.json()
+        return response.json()
 
     async def claim_rewards_handler(self):
         handler = retry(
@@ -110,7 +110,7 @@ class GrassRest(BaseClient):
 
         response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy)
 
-        assert (await response.json()).get("result") == {}
+        assert (response.json()).get("result") == {}
         return True
 
     async def get_points_handler(self):
@@ -129,9 +129,9 @@ class GrassRest(BaseClient):
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
-        logger.debug(f"{self.id} | Get Points response: {await response.text()}")
+        logger.debug(f"{self.id} | Get Points response: {response.text}")
 
-        res_json = await response.json()
+        res_json = response.json()
         points = res_json.get('data', {}).get('epochEarnings', [{}])[0].get('totalCumulativePoints')
 
         if points is not None:
@@ -165,18 +165,18 @@ class GrassRest(BaseClient):
 
         response = await self.session.post(url, headers=self.website_headers, data=json.dumps(json_data),
                                            proxy=self.proxy)
-        logger.debug(f"{self.id} | Login response: {await response.text()}")
+        logger.debug(f"{self.id} | Login response: {response.text}")
 
-        res_json = await response.json()
+        res_json = response.json()
         if res_json.get("error") is not None:
             raise LoginException(f"Login stopped: {res_json['error']['message']}")
 
-        if response.status == 403:
-            raise ProxyBlockedException(f"Login response: {await response.text()}")
-        if response.status != 200:
-            raise aiohttp.ClientConnectionError(f"Login response: | {await response.text()}")
+        if response.status_code == 403:
+            raise ProxyBlockedException(f"Login response: {response.text}")
+        if response.status_code != 200:
+            raise aiohttp.ClientConnectionError(f"Login response: | {response.text}")
 
-        return await response.json()
+        return response.json()
 
     async def confirm_email(self, imap_pass: str):
         await self.send_approve_link(endpoint="sendEmailVerification")
@@ -212,7 +212,7 @@ class GrassRest(BaseClient):
             response = await self.session.post(
                 url, headers=self.website_headers, proxy=self.proxy, data=json.dumps(json_data)
             )
-            response_data = await response.json()
+            response_data = response.json()
 
             if response_data.get("result") != {}:
                 raise Exception(response_data)
@@ -237,7 +237,7 @@ class GrassRest(BaseClient):
             response = await self.session.post(
                 url, headers=headers, proxy=self.proxy
             )
-            response_data = await response.json()
+            response_data = response.json()
 
             if response_data.get("result") != {}:
                 raise Exception(response_data)
@@ -280,7 +280,7 @@ Nonce: {timestamp}"""
             }
 
             response = await self.session.post(url, headers=self.website_headers, proxy=self.proxy, json=json_data)
-            response_data = await response.json()
+            response_data = response.json()
 
             if response_data.get("result") == {}:
                 logger.info(f"{self.id} | {self.email} wallet linked successfully!")
@@ -323,7 +323,7 @@ Nonce: {timestamp}"""
         url = 'https://api.getgrass.io/users/dash'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
-        return await response.json()
+        return response.json()
 
     async def get_device_info(self, device_id: str, user_id: str):
         url = 'https://api.getgrass.io/extension/device'
@@ -334,13 +334,13 @@ Nonce: {timestamp}"""
         }
 
         response = await self.session.get(url, headers=self.website_headers, params=params, proxy=self.proxy)
-        return await response.json()
+        return response.json()
 
     async def get_devices_info(self):
         url = 'https://api.getgrass.io/extension/user-score'
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
-        return await response.json()
+        return response.json()
 
     async def get_proxy_score_by_device_id_handler(self):
         handler = retry(
@@ -404,4 +404,4 @@ Nonce: {timestamp}"""
         self.ip = await self.get_ip()
 
     async def get_ip(self):
-        return await (await self.session.get('https://api.ipify.org', proxy=self.proxy)).text()
+        return (await self.session.get('https://api.ipify.org', proxy=self.proxy)).text
