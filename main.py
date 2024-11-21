@@ -38,7 +38,7 @@ def bot_info(name: str = ""):
 async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, db: AccountsDB = None):
     consumables = account.split(":")[:3]
     imap_pass = None
-    
+
     if SINGLE_IMAP_ACCOUNT:
         consumables.append(SINGLE_IMAP_ACCOUNT.split(":")[1])
 
@@ -114,6 +114,7 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
     finally:
         if grass:
             await grass.session.close()
+            await grass.ws_session.close()
 
 
 async def main():
@@ -147,7 +148,7 @@ async def main():
     autoreger = AutoReger.get_accounts(
         (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, WALLETS_FILE_PATH),
         with_id=True,
-        static_extra=(db, )
+        static_extra=(db,)
     )
 
     threads = THREADS
@@ -164,7 +165,8 @@ async def main():
                 logger.error("Wallets count != accounts count")
                 return
         elif len(accounts[0].split(":")) != 3:
-            logger.error("For __APPROVE__ mode: Need to provide email, password and imap password - email:password:imap_password")
+            logger.error(
+                "For __APPROVE__ mode: Need to provide email, password and imap password - email:password:imap_password")
             return
 
         msg = "__APPROVE__ MODE"
