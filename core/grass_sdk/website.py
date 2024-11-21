@@ -167,9 +167,12 @@ class GrassRest(BaseClient):
                                            proxy=self.proxy)
         logger.debug(f"{self.id} | Login response: {response.text}")
 
-        res_json = response.json()
-        if res_json.get("error") is not None:
-            raise LoginException(f"Login stopped: {res_json['error']['message']}")
+        try:
+            res_json = response.json()
+            if res_json.get("error") is not None:
+                raise LoginException(f"{self.email} | Login stopped: {res_json['error']['message']}")
+        except aiohttp.ContentTypeError as e:
+            logger.info(f"{self.id} | Login response: Could not parse response as JSON. '{e}'")
 
         if response.status_code == 403:
             raise ProxyBlockedException(f"Login response: {response.text}")
