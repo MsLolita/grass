@@ -64,7 +64,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 logger.warning(f"LoginException | {self.id} | {e}")
                 return False
             except (ProxyBlockedException, ProxyForbiddenException) as e:
-                # self.proxies.remove(self.proxy)
+                self.proxies.remove(self.proxy)
                 msg = "Proxy forbidden"
             except ProxyError:
                 msg = "Low proxy score"
