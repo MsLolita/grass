@@ -1,5 +1,6 @@
 import asyncio
 import random
+import time
 import uuid
 from typing import List, Optional
 
@@ -93,21 +94,43 @@ class Grass(GrassWs, GrassRest, FailureCounter):
             await asyncio.sleep(random.uniform(20, 21))
 
     async def run(self, browser_id: str, user_id: str):
+       
         while True:
             try:
+                # using custom id here for testing 
                 await self.connection_handler()
-                await self.auth_to_extension(browser_id, user_id)
-
-                if self.proxy_score is None:
-                    await asyncio.sleep(1)
-
-                    if MIN_PROXY_SCORE:
-                        await self.handle_proxy_score(MIN_PROXY_SCORE)
-
+                # start the chain with a ping
+                await asyncio.sleep(1) #wait 1 sec  
+                
                 for i in range(10 ** 9):
                     await self.send_ping()
-                    await self.send_pong()
-
+                    await asyncio.sleep(1) #wait 1 sec
+                     
+                    msg = await self.receive_message() # receive the message 
+                    action= msg.get("action") # get the action of the message
+                    if action == "AUTH":
+                        logger.info("Received AUTH action")
+                        connection_id=msg.get("id")
+                        await self.auth_to_extension(connection_id,browser_id, user_id)
+                        
+                    elif action == "HTTP_REQUEST": # the new grass request. It only happens once but could be sent at any time
+                        logger.info("Received HTTP_REQUEST action")
+                        await self.handle_http_action(msg)
+                        logger.info("sent HTTP_REQUEST results")
+                       
+                    elif action == "PONG":
+                        logger.info("Received PONG action")
+                        connection_id=msg.get("id")
+                        await self.send_pong(connection_id)
+                        # Handle PONG logic if needed
+                    else:
+                        logger.info(f"Unknown action: {action}")
+                    # auth first then check proxy score
+                    if self.proxy_score is None:
+                        await asyncio.sleep(1)
+                        if MIN_PROXY_SCORE:
+                            await self.handle_proxy_score(MIN_PROXY_SCORE)
+                    
                     if SHOW_LOGS_RARELY:
                         if not (i % 10):
                             logger.info(f"{self.id} | Mined grass.")
@@ -120,11 +143,10 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                         logger.info(f"{self.id} | Total points: {points}")
                     # if not (i % 1000):
                     #     total_points = await self.db.get_total_points()
-                    #     logger.info(f"Total points in database: {total_points or 0}")
+                    #     logger.info(f"Total points in database: {total_points or 0}")     
                     if i:
                         self.fail_reset()
-
-                    await asyncio.sleep(random.randint(119, 120))
+                    await asyncio.sleep(random.randint(119, 120)) 
             except (WebsocketClosedException, ConnectionResetError, TypeError) as e:
                 logger.info(f"{self.id} | {type(e).__name__}: {e}. Reconnecting...")
             # except ConnectionResetError as e:
