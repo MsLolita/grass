@@ -9,6 +9,8 @@ import uuid
 from core.utils import logger
 from core.utils.exception import WebsocketClosedException, ProxyForbiddenException
 
+import os, base64
+
 
 class GrassWs:
     def __init__(self, user_agent: str = None, proxy: str = None):
@@ -25,11 +27,14 @@ class GrassWs:
         connection_port = ["4444", "4650"]
         uri = f"wss://proxy2.wynd.network:{choice(connection_port)}/"
 
+        random_bytes = os.urandom(16)
+        sec_websocket_key = base64.b64encode(random_bytes).decode('utf-8')
+
         headers = {
             'Pragma': 'no-cache',
             'Origin': 'chrome-extension://lkbnfiajjmbhnfledhphioinpickokdi',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Sec-WebSocket-Key': '94BKvjUp/+zImAvhNQWT3w==',
+            'Sec-WebSocket-Key': sec_websocket_key,
             'User-Agent': self.user_agent,
             'Upgrade': 'websocket',
             'Cache-Control': 'no-cache',
