@@ -4,6 +4,7 @@ import os
 import random
 import sys
 import traceback
+from asyncio import WindowsSelectorEventLoopPolicy
 
 from art import text2art
 from imap_tools import MailboxLoginError
@@ -187,9 +188,6 @@ if __name__ == "__main__":
     bot_info("GRASS_AUTO")
 
     if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
-    else:
-        asyncio.run(main())
+        asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(main())

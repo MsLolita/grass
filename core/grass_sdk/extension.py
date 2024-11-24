@@ -1,11 +1,12 @@
 import json
 import time
+from base64 import b64decode, b64encode
 from random import choice
 
 from aiohttp import WSMsgType
-
 import uuid
 
+from core.utils import logger
 from core.utils.exception import WebsocketClosedException, ProxyForbiddenException
 
 
@@ -20,6 +21,7 @@ class GrassWs:
         self.ws_session = None
 
     async def connect(self):
+        # self.proxy=None # testing on my local network will remove
         connection_port = ["4444", "4650"]
         uri = f"wss://proxy2.wynd.network:{choice(connection_port)}/"
 
@@ -44,21 +46,21 @@ class GrassWs:
             raise e
 
     async def send_message(self, message):
-        # logger.info(f"Sending: {message}")
+        logger.info(f"Sending: {message}")
         await self.websocket.send_str(message)
 
     async def receive_message(self):
         msg = await self.websocket.receive()
-        # logger.info(f"Received: {msg}")
+        logger.info(f"Received: {msg}")
 
         if msg.type == WSMsgType.CLOSED:
             raise WebsocketClosedException(f"Websocket closed: {msg}")
 
-        return msg.data
+        return json.loads(msg.data)
 
     async def get_connection_id(self):
         msg = await self.receive_message()
-        return json.loads(msg)['id']
+        return msg['id']
 
     async def auth_to_extension(self, browser_id: str, user_id: str):
         connection_id = await self.get_connection_id()
@@ -96,3 +98,52 @@ class GrassWs:
         )
 
         await self.send_message(message)
+
+    async def handle_http_request_action(self):
+        http_info = await self.receive_message()
+        result = await self.build_http_request(http_info['data'])
+
+        message = json.dumps(
+            {
+                "id": http_info["id"],
+                "origin_action": "HTTP_REQUEST",
+                "result": result
+            }
+        )
+
+        await self.send_message(message)
+
+    async def build_http_request(self, request_data):
+        method = request_data['method']
+        url = request_data['url']
+        headers = request_data['headers']
+        body = request_data.get("body") # there may be no body
+
+        if body: # if there is a body decode it
+            body = b64decode(body) # this will probably be in json format when decoded but i dont think there is a need to turn it to a json
+
+        try:
+            response = await self.session.request(method, url,
+                                                  headers=headers, data=body, proxy=self.proxy)
+
+            if response:
+                response.raise_for_status()
+                response_headers_raw = response.headers.multi_items()
+                response_headers = dict(response_headers_raw)
+                response_body = response.content
+                status_reason = response.reason
+                status_code = response.status_code
+                encoded_body = b64encode(response_body)
+                encoded_body_as_str = encoded_body.decode('utf-8')
+
+                return {
+                    "body": encoded_body_as_str,
+                    "headers": response_headers,
+                    "status": status_code,
+                    "status_text": status_reason,
+                    "url": url
+                }
+
+        except Exception:
+            # return this if anything happened
+            return {} # return an empty string if we have issues running the request

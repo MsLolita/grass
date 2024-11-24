@@ -96,6 +96,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         while True:
             try:
                 await self.connection_handler()
+
                 await self.auth_to_extension(browser_id, user_id)
 
                 if self.proxy_score is None:
@@ -103,6 +104,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
                     if MIN_PROXY_SCORE:
                         await self.handle_proxy_score(MIN_PROXY_SCORE)
+
+                    await self.handle_http_request_action()
 
                 for i in range(10 ** 9):
                     await self.send_ping()
@@ -132,7 +135,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
             # except TypeError as e:
             #     logger.info(f"{self.id} | Type error: {e}. Reconnecting...")
                 # await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay for some minutes...", sleep_time=60)
-
+            # except Exception as e:
+            #     logger.info(f"{self.id} | {traceback.format_exc()}")
             await self.failure_handler(limit=2)
 
             await asyncio.sleep(5, 10)
