@@ -119,7 +119,7 @@ class GrassWs:
         headers = request_data['headers']
         body = request_data.get("body") # there may be no body
 
-        if body: # if there is a body decode it
+        if body:
             body = b64decode(body) # this will probably be in json format when decoded but i dont think there is a need to turn it to a json
 
         try:
