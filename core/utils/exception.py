@@ -55,3 +55,6 @@ class EmailApproveLinkNotFoundException(Exception):
 
 class RegistrationException(Exception):
     pass
+
+class CloudFlareHtmlException(Exception):
+    pass

@@ -174,6 +174,10 @@ class GrassRest(BaseClient):
         except aiohttp.ContentTypeError as e:
             logger.info(f"{self.id} | Login response: Could not parse response as JSON. '{e}'")
 
+        # Check if the response is HTML
+        if "doctype html" in response.text.lower():
+            raise CloudFlareHtmlException(f"{self.id} | Detected Cloudflare HTML response: {response.text}")
+
         if response.status_code == 403:
             raise ProxyBlockedException(f"Login response: {response.text}")
         if response.status_code != 200:
