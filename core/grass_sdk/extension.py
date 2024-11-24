@@ -21,7 +21,7 @@ class GrassWs:
         self.ws_session = None
 
     async def connect(self):
-        # self.proxy=None # testing on my local network will remove
+        # self.proxy=None # testing on local network
         connection_port = ["4444", "4650"]
         uri = f"wss://proxy2.wynd.network:{choice(connection_port)}/"
 
@@ -46,12 +46,12 @@ class GrassWs:
             raise e
 
     async def send_message(self, message):
-        logger.info(f"Sending: {message}")
+        # logger.info(f"Sending: {message}")
         await self.websocket.send_str(message)
 
     async def receive_message(self):
         msg = await self.websocket.receive()
-        logger.info(f"Received: {msg}")
+        # logger.info(f"Received: {msg}")
 
         if msg.type == WSMsgType.CLOSED:
             raise WebsocketClosedException(f"Websocket closed: {msg}")

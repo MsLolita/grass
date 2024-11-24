@@ -30,7 +30,7 @@ REGISTER_DELAY = (3, 7)
 
 TWO_CAPTCHA_API_KEY = ""
 ANTICAPTCHA_API_KEY = ""
-CAPMONSTER_API_KEY = ""
+CAPMONSTER_API_KEY = "5fa169e8d516dfc839c14147af60817c"
 CAPSOLVER_API_KEY = ""
 CAPTCHAAI_API_KEY = ""
 
@@ -50,4 +50,4 @@ CAPTCHA_PARAMS = {
 ACCOUNTS_FILE_PATH = "data/accounts.txt"
 PROXIES_FILE_PATH = "data/proxies.txt"
 WALLETS_FILE_PATH = "data/wallets.txt"
-PROXY_DB_PATH = 'data/proxies_stats.db'
+PROXY_DB_PATH = 'data/proxies_stats2.db'
