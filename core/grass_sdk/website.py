@@ -145,7 +145,7 @@ class GrassRest(BaseClient):
 
     async def handle_login(self):
         handler = retry(
-            stop=stop_after_attempt(1),
+            stop=stop_after_attempt(12),
             retry=retry_if_not_exception_type((LoginException, ProxyBlockedException)),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Login retrying... "
                                                                    f"{retry_state.outcome.exception()}"),
