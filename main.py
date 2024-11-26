@@ -4,7 +4,6 @@ import os
 import random
 import sys
 import traceback
-from asyncio import WindowsSelectorEventLoopPolicy
 
 from art import text2art
 from imap_tools import MailboxLoginError
@@ -115,7 +114,7 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
     finally:
         if grass:
             await grass.session.close()
-            await grass.ws_session.close()
+            # await grass.ws_session.close()
 
 
 async def main():
@@ -186,7 +185,8 @@ async def main():
 
 if __name__ == "__main__":
     bot_info("GRASS_AUTO")
+
     if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     asyncio.run(main())

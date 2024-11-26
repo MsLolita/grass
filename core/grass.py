@@ -4,7 +4,6 @@ import uuid
 from typing import List, Optional
 
 import aiohttp
-from curl_cffi.requests import AsyncSession
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
@@ -38,8 +37,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
         self.db: AccountsDB = db
 
-        self.session = AsyncSession(verify=False, trust_env=True)
-        self.ws_session = aiohttp.ClientSession(trust_env=True, connector=aiohttp.TCPConnector(ssl=False))
+        self.session: aiohttp.ClientSession = aiohttp.ClientSession(trust_env=True,
+                                                                    connector=aiohttp.TCPConnector(ssl=False))
 
         self.proxies: List[str] = []
         self.is_extra_proxies_left: bool = True
@@ -164,7 +163,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
            wait=wait_random(5, 7),
            reraise=True)
     async def handle_proxy_score(self, min_score: int):
-        if (proxy_score := await self.get_proxy_score_by_device_id_handler()) is None:
+        if (proxy_score := await self.get_proxy_score_via_devices_by_device_handler()) is None:
             # logger.info(f"{self.id} | Proxy score not found for {self.proxy}. Guess Bad proxies! Continue...")
             # return None
             raise ProxyScoreNotFoundException(f"{self.id} | Proxy score not found! Retrying...")

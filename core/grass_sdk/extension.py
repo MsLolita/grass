@@ -6,7 +6,7 @@ from random import choice
 from aiohttp import WSMsgType
 import uuid
 
-from core.utils import logger
+
 from core.utils.exception import WebsocketClosedException, ProxyForbiddenException
 
 import os, base64
@@ -20,7 +20,7 @@ class GrassWs:
         self.session = None
         self.websocket = None
         self.id = None
-        self.ws_session = None
+        # self.ws_session = None
 
     async def connect(self):
         # self.proxy=None # testing on local network
@@ -44,7 +44,7 @@ class GrassWs:
         }
 
         try:
-            self.websocket = await self.ws_session.ws_connect(uri, proxy_headers=headers, proxy=self.proxy)
+            self.websocket = await self.session.ws_connect(uri, proxy_headers=headers, proxy=self.proxy)
         except Exception as e:
             if 'status' in dir(e) and e.status == 403:
                 raise ProxyForbiddenException(f"Low proxy score. Can't connect. Error: {e}")
