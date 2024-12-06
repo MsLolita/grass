@@ -212,16 +212,17 @@ class FarmingThread(QThread):
                     for _ in range(3):
                         try:
                             os.remove(PROXY_DB_PATH)
-                            logger.info("База данных успешно очищена")
+                            # logger.info("База данных успешно очищена")
                             break
                         except PermissionError:
                             import time
                             time.sleep(0.5)
                 except:
-                    logger.warning("Не удалось очистить базу данных")
+                    pass
+                    # logger.warning("Не удалось очистить базу данных")
 
         except Exception as e:
-            logger.error(f"Ошибка при очистке БД: {e}")
+            logger.error(f"Error cleaning up database: {e}")
 
     async def run_main(self):
         """Запускает main() с проверкой флага остановки"""
@@ -529,9 +530,9 @@ class MainApp(QMainWindow):
                             file.write(f"{param_name} = {value}\n")
                     else:
                         file.write(line)
-            logger.info(f"Параметр {param_name} обновлён на {value}.")
+            logger.info(f"Parameter {param_name} changed to {value}.")
         except Exception as e:
-            logger.error(f"Ошибка при обновлении параметра {param_name}: {e}")
+            logger.error(f"Error updating parameter {param_name}: {e}")
 
     def convert_to_bool(self, value):
         if isinstance(value, str):
@@ -549,11 +550,11 @@ class MainApp(QMainWindow):
             self.local_captcha_keys[current_service] = self.ui.lineEdit_CapthaAPI.text()
 
     def update_file_path(self, param_name, button):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "Все файлы (*)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Choose a file", "", "All Files (*)")
         if file_path:
             self.update_config_param(param_name, file_path)
             button.setText(f"Updated: {file_path.split('/')[-1]}")
-            logger.info(f"{param_name} обновлён на {file_path}.")
+            logger.info(f"{param_name} updated to {file_path}.")
 
     def reset_to_default(self):
         default_paths = {
@@ -566,7 +567,7 @@ class MainApp(QMainWindow):
         for param_name, default_path in default_paths.items():
             self.update_config_param(param_name, default_path)
             self.initial_params[param_name] = default_path
-            logger.info(f"{param_name} сброшен на {default_path}.")
+            logger.info(f"{param_name} updated to {default_path}.")
 
         self.ui.pushButton_AccountsFile.setText(f"{DEFAULT_ACCOUNTS_FILE_PATH.split('/')[-1]}")
         self.ui.pushButton_ProxyFile.setText(f"{DEFAULT_PROXIES_FILE_PATH.split('/')[-1]}")
@@ -580,7 +581,7 @@ class MainApp(QMainWindow):
             if min_delay >= 0 and max_delay > min_delay:
                 self.update_config_param("REGISTER_DELAY", (min_delay, max_delay))
         except ValueError:
-            logger.error("Ошибка при вводе значений для REGISTER_DELAY.")
+            logger.error("Invalid REGISTER_DELAY.")
 
     def save_changes(self):
         try:
@@ -609,7 +610,7 @@ class MainApp(QMainWindow):
                 old_value = self.initial_params.get(param_name)
                 if old_value != new_value:
                     self.update_config_param(param_name, new_value)
-                    logger.info(f"Параметр {param_name} обновлён с {old_value} на {new_value}.")
+                    logger.info(f"{param_name} updated from {old_value} to {new_value}.")
                     self.initial_params[param_name] = new_value
 
             for service, param_name in self.captcha_services.items():
@@ -617,14 +618,14 @@ class MainApp(QMainWindow):
                 old_value = globals().get(param_name)
                 if old_value != api_key_value:
                     self.update_config_param(param_name, api_key_value)
-                    logger.info(f"API-ключ для {service} обновлён.")
+                    logger.info(f"API-key for {service} updated to {api_key_value}.")
 
             # Обновляем глобальные переменные после сохранения
             update_global_config()
-            logger.info("Все изменения успешно сохранены и применены.")
+            logger.info("All parameters saved.")
             
         except Exception as e:
-            logger.error(f"Ошибка при сохранении параметров: {e}")
+            logger.error(f"Error saving parameters: {e}")
 
     def toggle_farming(self):
         """Переключает состояние фарминга между запуском и остановкой"""
@@ -652,7 +653,7 @@ class MainApp(QMainWindow):
             self.farming_thread.start()
             
         except Exception as e:
-            logger.error(f"Ошибка при запуске фарминга: {e}")
+            logger.error(f"Error starting mining: {e}")
             self.stop_farming()
 
     def stop_farming(self):
@@ -669,19 +670,19 @@ class MainApp(QMainWindow):
                 self.farming_thread.wait()  # Ждем завершения потока
                 self.farming_thread = None
                 
-            logger.info("Фарминг остановлен")
+            logger.info("Mining stopped")
             
         except Exception as e:
-            logger.error(f"Ошибка при остановке фарминга: {e}")
+            logger.error(f"Error stopping mining: {e}")
 
     def on_farming_error(self, error_msg):
         """Обработчик ошибок фарминга"""
-        logger.error(f"Ошибка в процессе фарминга: {error_msg}")
+        logger.error(f"Error in mining: {error_msg}")
         self.stop_farming()
 
     def on_farming_finished(self):
         """Обработчик завершения фарминга"""
-        logger.info("Фарминг завершен")
+        logger.info("Mining finished")
         self.stop_farming()
 
     def closeEvent(self, event):
@@ -718,7 +719,7 @@ class MainApp(QMainWindow):
             self.farming_thread.start()
             
         except Exception as e:
-            logger.error(f"Ошибка при запуске регистрации: {e}")
+            logger.error(f"Error starting registration: {e}")
             self.stop_registration()
 
     def stop_registration(self):
@@ -736,19 +737,19 @@ class MainApp(QMainWindow):
                 self.farming_thread.wait()
                 self.farming_thread = None
                 
-            logger.info("Регистрация остановлена")
+            logger.info("Registration stopped")
             
         except Exception as e:
-            logger.error(f"Ошибка при остановке регистрации: {e}")
+            logger.error(f"Error stopping registration: {e}")
 
     def on_registration_error(self, error_msg):
         """Обработчик ошибок регистации"""
-        logger.error(f"Ошибка в процессе регистрации: {error_msg}")
+        # logger.error(f"Error in registration: {error_msg}")
         self.stop_registration()
 
     def on_registration_finished(self):
         """Обработчик завершения регистрации"""
-        logger.info("Регистрация завершена")
+        # logger.info("Registration finished")
         self.stop_registration()
 
 def start_ui():
