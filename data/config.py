@@ -1,6 +1,8 @@
 THREADS = 5  # for register account / claim rewards mode / approve email mode
 MIN_PROXY_SCORE = 50  # Put MIN_PROXY_SCORE = 0 not to check proxy score (if site is down)
 
+USE_2XNODE = True
+
 #########################################
 APPROVE_EMAIL = False  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
 CONNECT_WALLET = False  # connect wallet (put private keys in wallets.txt)

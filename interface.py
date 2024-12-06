@@ -112,18 +112,30 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
 
         return True
     except (LoginException, RegistrationException) as e:
-        logger.warning(f"{_id} | {e}")
+        error_msg = f"{_id} | {e}"
+        logger.warning(error_msg)
+        return False
     except MailboxLoginError as e:
-        logger.error(f"{_id} | {e}")
+        error_msg = f"{_id} | {e}"
+        logger.error(error_msg)
+        return False
     except EmailApproveLinkNotFoundException as e:
         logger.warning(e)
+        return False
     except aiohttp.ClientError as e:
-        logger.warning(f"{_id} | Some connection error: {e}...")
+        error_msg = f"{_id} | Some connection error: {e}..."
+        logger.warning(error_msg)
+        return False
     except Exception as e:
-        logger.error(f"{_id} | not handled exception | error: {e} {traceback.format_exc()}")
+        error_msg = f"{_id} | not handled exception | error: {e}\n{traceback.format_exc()}"
+        logger.error(error_msg)
+        return False
     finally:
         if grass:
-            await grass.session.close()
+            try:
+                await grass.session.close()
+            except Exception as e:
+                logger.error(f"Error closing session: {e}")
 
 async def main():
     accounts = file_to_list(ACCOUNTS_FILE_PATH)
@@ -173,6 +185,7 @@ async def main():
 class FarmingThread(QThread):
     error = Signal(str)
     finished = Signal()
+    account_error = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -213,16 +226,18 @@ class FarmingThread(QThread):
     async def run_main(self):
         """Запускает main() с проверкой флага остановки"""
         try:
-            # Очищаем БД перед запуском
+            # Update config first to catch any config errors early
+            mining_mode, register_only = update_global_config()
+            
             self._cleanup_db()
-
-            # Создаем новую БД
             self.db = AccountsDB(PROXY_DB_PATH)
             await self.db.connect()
 
             accounts = file_to_list(ACCOUNTS_FILE_PATH)
             if not accounts:
-                logger.warning("No accounts found!")
+                error_msg = "No accounts found!"
+                logger.warning(error_msg)
+                self.error.emit(error_msg)
                 return
 
             proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
@@ -248,53 +263,77 @@ class FarmingThread(QThread):
                     static_extra=(self.db,)
                 )
 
+                if not autoreger:
+                    error_msg = "Failed to initialize AutoReger"
+                    logger.error(error_msg)
+                    self.error.emit(error_msg)
+                    return
+
                 threads = THREADS if not MINING_MODE else len(autoreger.accounts)
-                await autoreger.start(worker_task, threads)
+                mode_msg = {
+                    REGISTER_ACCOUNT_ONLY: "__REGISTER__ MODE",
+                    APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL: "__APPROVE__ MODE",
+                    CLAIM_REWARDS_ONLY: "__CLAIM__ MODE"
+                }.get(True, "__MINING__ MODE")
+
+                logger.info(mode_msg)
+                
+                # Check captcha API key before starting if in register mode
+                if REGISTER_ACCOUNT_ONLY:
+                    captcha_key = None
+                    for key_name in [TWO_CAPTCHA_API_KEY, ANTICAPTCHA_API_KEY, CAPMONSTER_API_KEY, CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY]:
+                        if key_name:
+                            captcha_key = key_name
+                            break
+                    
+                    if not captcha_key:
+                        error_msg = "No valid captcha solving service API key found"
+                        logger.error(error_msg)
+                        self.error.emit(error_msg)
+                        return
+
+                try:
+                    await autoreger.start(worker_task, threads)
+                except Exception as e:
+                    error_msg = f"Error in autoreger: {str(e)}\n{traceback.format_exc()}"
+                    logger.error(error_msg)
+                    self.error.emit(error_msg)
+                    # Continue execution despite errors
 
         except Exception as e:
-            logger.error(f"Ошибка в main(): {e}")
-            raise
+            error_msg = f"Critical error: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            self.error.emit(error_msg)
         finally:
             if self.db:
                 try:
                     await self.db.close_connection()
-                except:
-                    pass
-                self.db = None
+                except Exception as e:
+                    logger.error(f"Error closing DB connection: {e}")
 
     def run(self):
-        """Основной метод потока"""
+        """Запускает асинхронный код в отдельном потоке"""
         try:
-            # Создаем новый event loop для асинхронных операций
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
             
-            # Запускаем асинхронный код
             try:
                 self.loop.run_until_complete(self.run_main())
-            except asyncio.CancelledError:
-                logger.info("Задача отменена")
             except Exception as e:
-                self.error.emit(str(e))
-            
+                error_msg = f"Error in main loop: {str(e)}"
+                logger.error(error_msg)
+                self.error.emit(error_msg)
+                # Don't re-raise, let the UI continue
         except Exception as e:
-            self.error.emit(str(e))
+            error_msg = f"Thread error: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            self.error.emit(error_msg)
         finally:
-            try:
-                # Закрываем все задачи
-                pending = asyncio.all_tasks(self.loop)
-                for task in pending:
-                    task.cancel()
-                
-                # Запускаем loop еще раз, чтобы обработать отмену задач
-                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                
-                # Закрываем loop
-                self.loop.close()
-                self.loop = None
-            except:
-                pass
-                
+            if self.loop:
+                try:
+                    self.loop.close()
+                except:
+                    pass
             self.finished.emit()
 
     def stop(self):
@@ -329,7 +368,7 @@ class MainApp(QMainWindow):
         # Настройка логирования для GUI
         logging_setup(gui_mode=True, text_browser=self.ui.textBrowser_Log)
 
-        # Устанавливаем первую вкладку активной
+        # Устанавлваем первую вкладку активной
         self.ui.tabWidget.setCurrentIndex(0)
 
         # Связь значений ComboBox с параметрами конфига
@@ -432,6 +471,45 @@ class MainApp(QMainWindow):
 
         # Добавляем подключение кнопки Registration
         self.ui.pushButton_Registration.clicked.connect(self.start_registration)
+
+        # Initialize thread
+        self.farming_thread = None
+        self.is_running = False
+
+        # Setup logging for GUI
+        logging_setup(gui_mode=True, text_browser=self.ui.textBrowser_Log)
+        
+        # Connect error handlers
+        self.setup_error_handlers()
+        
+        # Rest of initialization...
+
+    def setup_error_handlers(self):
+        """Setup error handlers for the UI"""
+        if self.farming_thread:
+            self.farming_thread.error.connect(self.on_error)
+            self.farming_thread.finished.connect(self.on_finished)
+            self.farming_thread.account_error.connect(self.on_account_error)
+
+    def on_error(self, error_msg):
+        """Handle errors in the UI"""
+        logger.error(error_msg)
+        # Make sure UI stays responsive
+        self.stop_farming()
+        # Show error in UI console
+        self.ui.textBrowser_Log.append(f"ERROR: {error_msg}")
+        
+    def on_account_error(self, error_msg):
+        """Handle individual account errors"""
+        logger.warning(error_msg)
+        # Show in UI console but don't stop
+        self.ui.textBrowser_Log.append(f"Account Error: {error_msg}")
+
+    def on_finished(self):
+        """Handle thread completion"""
+        logger.info("Process completed")
+        self.stop_farming()
+        self.ui.textBrowser_Log.append("Process completed")
 
     def update_config_param(self, param_name, value):
         try:
@@ -631,7 +709,7 @@ class MainApp(QMainWindow):
             
             # Запускаем процесс регистрации
             self.is_running = True
-            self.ui.pushButton_Registration.setText("Stop Reg")
+            self.ui.pushButton_Registration.setText("Stop register")
             self.ui.pushButton_StartFarming.setEnabled(False)
             
             self.farming_thread = FarmingThread()
@@ -650,7 +728,7 @@ class MainApp(QMainWindow):
                 return
                 
             self.is_running = False
-            self.ui.pushButton_Registration.setText("Reg")
+            self.ui.pushButton_Registration.setText("Start register")
             self.ui.pushButton_StartFarming.setEnabled(True)
             
             if self.farming_thread:
@@ -664,7 +742,7 @@ class MainApp(QMainWindow):
             logger.error(f"Ошибка при остановке регистрации: {e}")
 
     def on_registration_error(self, error_msg):
-        """Обработчик ошибок регистрации"""
+        """Обработчик ошибок регистации"""
         logger.error(f"Ошибка в процессе регистрации: {error_msg}")
         self.stop_registration()
 
@@ -673,9 +751,12 @@ class MainApp(QMainWindow):
         logger.info("Регистрация завершена")
         self.stop_registration()
 
-if __name__ == "__main__":
-    # GUI режим
+def start_ui():
     app = QApplication(sys.argv)
     window = MainApp()
     window.show()
     sys.exit(app.exec())
+#
+# if __name__ == "__main__":
+#     start_ui()
+#

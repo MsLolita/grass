@@ -11,6 +11,8 @@ from core.utils.exception import WebsocketClosedException, ProxyForbiddenExcepti
 
 import os, base64
 
+from data.config import USE_2XNODE
+
 
 class GrassWs:
     def __init__(self, user_agent: str = None, proxy: str = None):
@@ -70,23 +72,28 @@ class GrassWs:
     async def auth_to_extension(self, browser_id: str, user_id: str):
         connection_id = await self.get_connection_id()
 
-        message = json.dumps(
-            {
-                "id": connection_id,
-                "origin_action": "AUTH",
-                "result": {
-                    "browser_id": browser_id,
-                    "user_id": user_id,
-                    "user_agent": self.user_agent,
-                    "timestamp": int(time.time()),
-                    "device_type": "desktop",
-                    "version": "4.28.2",
-                    # "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
-                }
+        message = {
+            "id": connection_id,
+            "origin_action": "AUTH",
+            "result": {
+                "browser_id": browser_id,
+                "user_id": user_id,
+                "user_agent": self.user_agent,
+                "timestamp": int(time.time()),
+                "device_type": "extension",
+                "version": "4.26.2",
+                "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
             }
-        )
+        }
 
-        await self.send_message(message)
+        if USE_2XNODE:
+            message['result'].update({
+                "device_type": "desktop",
+                "version": "4.28.2",
+            })
+            message['result'].pop("extension_id")
+
+        await self.send_message(json.dumps(message))
 
     async def send_ping(self):
         message = json.dumps(

@@ -88,7 +88,7 @@ class AutoReger:
             log_msg = "failed!"
             file_name = "failed"
 
-        file_msg = "|".join(str(x) for x in account)
+        file_msg = "|".join(str(x) for x in account[:2])
         str_to_file(f"./logs/{file_name}.txt", file_msg)
 
         log_func(f"Account №{account_id} {log_msg}")

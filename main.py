@@ -3,6 +3,7 @@ import ctypes
 import os
 import random
 import sys
+import time
 import traceback
 
 import aiohttp
@@ -187,12 +188,11 @@ async def main():
 
 
 if __name__ == "__main__":
-    bot_info("GRASS_AUTO")
-
     if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
-
-    asyncio.run(main())
+        # Start UI for Windows
+        import interface
+        interface.start_ui()
+    else:
+        # Start directly from config for Linux
+        bot_info("GRASS_AUTO")
+        asyncio.run(main())
