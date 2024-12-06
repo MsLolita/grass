@@ -1,2 +1,2 @@
-python main.py
+python interface.py
 pause
