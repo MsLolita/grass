@@ -2,6 +2,7 @@ THREADS = 5  # for register account / claim rewards mode / approve email mode
 MIN_PROXY_SCORE = 50  # Put MIN_PROXY_SCORE = 0 not to check proxy score (if site is down)
 
 USE_2XNODE = True
+USE_CONSOLE_VERSION = False # if True - use console version and no interface shows
 
 #########################################
 APPROVE_EMAIL = False  # approve email (NEEDED IMAP AND ACCESS TO EMAIL)
@@ -24,7 +25,7 @@ CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
-MINING_MODE = True  # False - not mine grass, True - mine grass | Remove all True on approve \ register section
+MINING_MODE = True
 
 # REGISTER PARAMETERS ONLY
 REGISTER_ACCOUNT_ONLY = False

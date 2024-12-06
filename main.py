@@ -3,7 +3,6 @@ import ctypes
 import os
 import random
 import sys
-import time
 import traceback
 
 import aiohttp
@@ -22,7 +21,7 @@ from core.utils.generate.person import Person
 from data.config import ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS, REGISTER_DELAY, \
     CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL, MINING_MODE, CONNECT_WALLET, \
     WALLETS_FILE_PATH, SEND_WALLET_APPROVE_LINK_TO_EMAIL, SINGLE_IMAP_ACCOUNT, SEMI_AUTOMATIC_APPROVE_LINK, \
-    PROXY_DB_PATH
+    PROXY_DB_PATH, USE_CONSOLE_VERSION
 
 
 def bot_info(name: str = ""):
@@ -189,10 +188,13 @@ async def main():
 
 if __name__ == "__main__":
     if sys.platform == 'win32':
-        # Start UI for Windows
-        import interface
-        interface.start_ui()
-    else:
-        # Start directly from config for Linux
-        bot_info("GRASS_AUTO")
-        asyncio.run(main())
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+        if not USE_CONSOLE_VERSION:
+            import interface
+            interface.start_ui()
+
+    bot_info("GRASS_AUTO")
+    loop = asyncio.ProactorEventLoop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(main())
