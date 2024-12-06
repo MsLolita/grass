@@ -102,7 +102,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                     await asyncio.sleep(1)
 
                     if MIN_PROXY_SCORE:
-                        await self.handle_proxy_score(MIN_PROXY_SCORE)
+                        await self.handle_proxy_score(MIN_PROXY_SCORE, browser_id)
 
                     await self.handle_http_request_action()
 
@@ -162,8 +162,8 @@ class Grass(GrassWs, GrassRest, FailureCounter):
            before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
            wait=wait_random(5, 7),
            reraise=True)
-    async def handle_proxy_score(self, min_score: int):
-        if (proxy_score := await self.get_proxy_score_via_devices_by_device_handler()) is None:
+    async def handle_proxy_score(self, min_score: int, browser_id: str):
+        if (proxy_score := await self.get_proxy_score_by_device_handler(browser_id)) is None:
             # logger.info(f"{self.id} | Proxy score not found for {self.proxy}. Guess Bad proxies! Continue...")
             # return None
             raise ProxyScoreNotFoundException(f"{self.id} | Proxy score not found! Retrying...")

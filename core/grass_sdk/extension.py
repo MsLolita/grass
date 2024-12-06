@@ -79,9 +79,9 @@ class GrassWs:
                     "user_id": user_id,
                     "user_agent": self.user_agent,
                     "timestamp": int(time.time()),
-                    "device_type": "extension",
-                    "version": "4.26.2",
-                    "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
+                    "device_type": "desktop",
+                    "version": "4.28.2",
+                    # "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
                 }
             }
         )

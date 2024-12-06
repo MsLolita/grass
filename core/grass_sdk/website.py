@@ -352,12 +352,11 @@ Nonce: {timestamp}"""
         return await response.json()
 
     async def get_device_info(self, device_id: str):
-        url = f"https://api.getgrass.io/retrieveDevice?input=%7B%22deviceId%22:%22{device_id}"
-
+        url = f"https://api.getgrass.io/retrieveDevice?input=%7B%22deviceId%22:%22{device_id}%22%7D"
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
         return await response.json()
 
-    async def get_proxy_score_by_device_handler(self, device_id: str):
+    async def get_proxy_score_by_device_handler(self, browser_id: str):
         handler = retry(
             stop=stop_after_attempt(3),
             before_sleep=lambda retry_state, **kwargs: logger.info(f"{self.id} | Retrying to get proxy score... "
@@ -365,11 +364,10 @@ Nonce: {timestamp}"""
             reraise=True
         )
 
-        return await handler(lambda: self.get_proxy_score_via_device(device_id))()
+        return await handler(lambda: self.get_proxy_score_via_device(browser_id))()
 
     async def get_proxy_score_via_device(self, device_id: str):
         res_json = await self.get_device_info(device_id)
-
         return res_json.get("result", {}).get("data", {}).get("ipScore", None)
 
     async def get_proxy_score_via_devices_by_device_handler(self):
