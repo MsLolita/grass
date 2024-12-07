@@ -14,7 +14,7 @@ SEMI_AUTOMATIC_APPROVE_LINK = False # if True - allow to manual paste approve li
 SINGLE_IMAP_ACCOUNT = False # usage "name@domain.com:password"
 
 # skip for auto chosen
-EMAIL_FOLDER = ''
+EMAIL_FOLDER = '' # folder where mails comes (example: SPAM INBOX JUNK etc.)
 IMAP_DOMAIN = ""  # imap server domain (example: imap.firstmail.ltd for firstmail)
 
 #########################################
