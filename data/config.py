@@ -25,10 +25,10 @@ CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
-MINING_MODE = True
+MINING_MODE = False
 
 # REGISTER PARAMETERS ONLY
-REGISTER_ACCOUNT_ONLY = False
+REGISTER_ACCOUNT_ONLY = True
 REGISTER_DELAY = (3, 7)
 
 TWO_CAPTCHA_API_KEY = ''

@@ -32,7 +32,8 @@ class CaptchaService:
             if api_key:
                 return {"solving_site": service, "api_key": api_key}
         if exit_on_fail:
-            print("No valid captcha solving service API key found")
+            exit("No valid captcha solving service API key found")
+        # raise ValueError("No valid captcha solving service API key found")
         return None
         
     async def get_captcha_token_async(self):
