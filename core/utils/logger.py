@@ -4,18 +4,18 @@ from datetime import date
 from loguru import logger
 
 
-class QTextBrowserHandler:
-    def __init__(self, text_browser):
-        self.text_browser = text_browser
+class QTextEditHandler:
+    def __init__(self, text_edit):
+        self.text_edit = text_edit
 
     def write(self, message):
         clean_message = clean_brackets(message)
-        self.text_browser.append(clean_message)
-        scrollbar = self.text_browser.verticalScrollBar()
+        self.text_edit.append(clean_message)
+        scrollbar = self.text_edit.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
 
-def logging_setup(gui_mode=False, text_browser=None):
+def logging_setup(gui_mode=False, text_edit=None):
     format_info = "<green>{time:HH:mm:ss.SS}</green> <blue>{level}</blue> <level>{message}</level>"
     format_error = "<green>{time:HH:mm:ss.SS}</green> <blue>{level}</blue> | " \
                    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>"
@@ -24,11 +24,11 @@ def logging_setup(gui_mode=False, text_browser=None):
     logger.remove()  # Удаляем все предыдущие обработчики
     # if sys.platform == "win32":
 
-    if gui_mode and text_browser is not None:
+    if gui_mode and text_edit is not None:
         logger.add(file_path + f"out_{date.today().strftime('%m-%d')}.log", colorize=True,
                    format=format_info)
 
-        handler = QTextBrowserHandler(text_browser)
+        handler = QTextEditHandler(text_edit)
         logger.add(handler, format=format_info, level="INFO")
     else:
         logger.add(file_path + f"out_{date.today().strftime('%m-%d')}.log", colorize=True,
