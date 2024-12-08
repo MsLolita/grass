@@ -10,7 +10,8 @@ import aiohttp
 from art import text2art
 from imap_tools import MailboxLoginError
 from termcolor import colored, cprint
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QUrl, Qt
+from PySide6.QtGui import QDesktopServices, QPixmap
 
 from better_proxy import Proxy
 from core import Grass
@@ -34,7 +35,7 @@ from data.config import (
     SINGLE_IMAP_ACCOUNT, SEMI_AUTOMATIC_APPROVE_LINK, PROXY_DB_PATH, MIN_PROXY_SCORE,
     EMAIL_FOLDER, IMAP_DOMAIN, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, CHECK_POINTS,
     TWO_CAPTCHA_API_KEY, ANTICAPTCHA_API_KEY, CAPMONSTER_API_KEY,
-    CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY, USE_PROXY_FOR_IMAP, SHOW_LOGS_RARELY
+    CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY, USE_PROXY_FOR_IMAP, SHOW_LOGS_RARELY, REF_CODE
 )
 
 def bot_info(name: str = ""):
@@ -353,7 +354,14 @@ class FarmingThread(QThread):
 def update_global_config():
     """Обновляет глобальные переменные из файла конфига"""
     with open('data/config.py', 'r', encoding='utf-8') as file:
-        exec(file.read(), globals())
+        config_content = file.read()
+        exec(config_content, globals())
+        
+    # Обновляем локальные значения API ключей
+    if hasattr(globals()['MainApp'], 'local_captcha_keys'):
+        for service, param_name in globals()['MainApp'].captcha_services.items():
+            globals()['MainApp'].local_captcha_keys[service] = globals().get(param_name, "")
+            
     return globals()['MINING_MODE'], globals()['REGISTER_ACCOUNT_ONLY']
 
 class MainApp(QMainWindow):
@@ -362,12 +370,28 @@ class MainApp(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         
+        # Добавим загрузку изображения после setupUi
+        try:
+            # Загружаем изображение
+            pixmap = QPixmap("core/static/image.png")
+            if not pixmap.isNull():
+                # Устанавливаем изображение в label без масштабирования
+                self.ui.label_13.setPixmap(pixmap)
+                # Устанавливаем размер label по размеру картинки
+                self.ui.label_13.setFixedSize(pixmap.size())
+                # Отключаем масштабирование
+                self.ui.label_13.setScaledContents(False)
+            else:
+                logger.error("Failed to load image: image is null")
+        except Exception as e:
+            logger.error(f"Error loading image: {e}")
+
         # Добавляем атрибуты для управления задачей
         self.farming_thread = None
         self.is_running = False
 
         # Настройка логирования для GUI
-        logging_setup(gui_mode=True, text_browser=self.ui.textBrowser_Log)
+        logging_setup(gui_mode=True, text_edit=self.ui.textEdit_Log)
 
         # Устанавлваем первую вкладку активной
         self.ui.tabWidget.setCurrentIndex(0)
@@ -408,6 +432,7 @@ class MainApp(QMainWindow):
             'CHECK_POINTS': CHECK_POINTS,
             'SHOW_LOGS_RARELY': SHOW_LOGS_RARELY,
             'CLAIM_REWARDS_ONLY': CLAIM_REWARDS_ONLY,
+            'REF_CODE': REF_CODE,
         }
 
         # Инициализация полей
@@ -415,6 +440,7 @@ class MainApp(QMainWindow):
         self.ui.lineEdit_MinProxyScore.setText(str(MIN_PROXY_SCORE))
         self.ui.lineEdit_EmailFolder.setText(EMAIL_FOLDER)
         self.ui.lineEdit_ImapDomain.setText(IMAP_DOMAIN)
+        self.ui.lineEdit_REFCODE.setText(REF_CODE)
         self.ui.lineEdit_Min.setText(str(REGISTER_DELAY[0]))
         self.ui.lineEdit_Max.setText(str(REGISTER_DELAY[1]))
 
@@ -473,12 +499,17 @@ class MainApp(QMainWindow):
         # Добавляем подключение кнопки Registration
         self.ui.pushButton_Registration.clicked.connect(self.start_registration)
 
+        # Добавьте эти строки после других подключений кнопок
+        self.ui.pushButton_Instructions.clicked.connect(self.open_instructions)
+        self.ui.pushButton_more.clicked.connect(self.open_telegram)
+        self.ui.pushButton_Web3.clicked.connect(self.open_web3)
+
         # Initialize thread
         self.farming_thread = None
         self.is_running = False
 
         # Setup logging for GUI
-        logging_setup(gui_mode=True, text_browser=self.ui.textBrowser_Log)
+        logging_setup(gui_mode=True, text_edit=self.ui.textEdit_Log)
         
         # Connect error handlers
         self.setup_error_handlers()
@@ -498,19 +529,19 @@ class MainApp(QMainWindow):
         # Make sure UI stays responsive
         self.stop_farming()
         # Show error in UI console
-        self.ui.textBrowser_Log.append(f"ERROR: {error_msg}")
+        self.ui.textEdit_Log.append(f"ERROR: {error_msg}")
         
     def on_account_error(self, error_msg):
         """Handle individual account errors"""
         logger.warning(error_msg)
         # Show in UI console but don't stop
-        self.ui.textBrowser_Log.append(f"Account Error: {error_msg}")
+        self.ui.textEdit_Log.append(f"Account Error: {error_msg}")
 
     def on_finished(self):
         """Handle thread completion"""
         logger.info("Process completed")
         self.stop_farming()
-        self.ui.textBrowser_Log.append("Process completed")
+        self.ui.textEdit_Log.append("Process completed")
 
     def update_config_param(self, param_name, value):
         try:
@@ -590,6 +621,7 @@ class MainApp(QMainWindow):
                 'MIN_PROXY_SCORE': int(self.ui.lineEdit_MinProxyScore.text()),
                 'EMAIL_FOLDER': self.ui.lineEdit_EmailFolder.text(),
                 'IMAP_DOMAIN': self.ui.lineEdit_ImapDomain.text(),
+                'REF_CODE': self.ui.lineEdit_REFCODE.text(),
                 'REGISTER_DELAY': (
                     int(self.ui.lineEdit_Min.text()),
                     int(self.ui.lineEdit_Max.text())
@@ -606,6 +638,7 @@ class MainApp(QMainWindow):
                 'CLAIM_REWARDS_ONLY': self.ui.checkBox_ClaimRewardOnly.isChecked(),
             }
 
+            # Сохраняем основные параметры
             for param_name, new_value in params_to_save.items():
                 old_value = self.initial_params.get(param_name)
                 if old_value != new_value:
@@ -613,15 +646,28 @@ class MainApp(QMainWindow):
                     logger.info(f"{param_name} updated from {old_value} to {new_value}.")
                     self.initial_params[param_name] = new_value
 
+            # Сохраняем API ключи капчи
             for service, param_name in self.captcha_services.items():
                 api_key_value = self.local_captcha_keys[service]
                 old_value = globals().get(param_name)
                 if old_value != api_key_value:
                     self.update_config_param(param_name, api_key_value)
+                    # Обновляем глобальную переменную сразу после сохранения
+                    globals()[param_name] = api_key_value
                     logger.info(f"API-key for {service} updated to {api_key_value}.")
 
+            # Перезагружаем модуль конфига
+            import data.config
+            import importlib
+            importlib.reload(data.config)
+            
             # Обновляем глобальные переменные после сохранения
             update_global_config()
+            
+            # Обновляем локальные значения API ключей из обновленных глобальных переменных
+            for service, param_name in self.captcha_services.items():
+                self.local_captcha_keys[service] = globals().get(param_name, "")
+                
             logger.info("All parameters saved.")
             
         except Exception as e:
@@ -696,6 +742,7 @@ class MainApp(QMainWindow):
 
     def start_registration(self):
         """Запускает процесс регистрации"""
+        logger.info({CAPMONSTER_API_KEY})
         try:
             # Обновляем конфиг и проверяем режим
             mining_mode, register_only = update_global_config()
@@ -752,12 +799,27 @@ class MainApp(QMainWindow):
         # logger.info("Registration finished")
         self.stop_registration()
 
+    def open_instructions(self):
+        """Открывает инструкции в браузере"""
+        QDesktopServices.openUrl(QUrl("https://teletype.in/@c6zr7/grass_for_EnJoYeR"))
+        logger.info("Opening instructions page...")
+
+    def open_telegram(self):
+        """Открывает Telegram канал"""
+        QDesktopServices.openUrl(QUrl("https://t.me/web3_enjoyer_club"))
+        logger.info("Opening Telegram channel...")
+
+    def open_web3(self):
+        """Открывает Web3 продукты"""
+        QDesktopServices.openUrl(QUrl("https://gemups.com/"))
+        logger.info("Opening Web3 products page...")
+
 def start_ui():
     app = QApplication(sys.argv)
     window = MainApp()
     window.show()
     sys.exit(app.exec())
-#
-# if __name__ == "__main__":
+
+#if __name__ == "__main__":
 #     start_ui()
-#
+

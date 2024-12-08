@@ -14,7 +14,7 @@ SEMI_AUTOMATIC_APPROVE_LINK = False # if True - allow to manual paste approve li
 SINGLE_IMAP_ACCOUNT = False # usage "name@domain.com:password"
 
 # skip for auto chosen
-EMAIL_FOLDER = ""  # folder where mails comes (example: SPAM INBOX JUNK etc.)
+EMAIL_FOLDER = '' # folder where mails comes (example: SPAM INBOX JUNK etc.)
 IMAP_DOMAIN = ""  # imap server domain (example: imap.firstmail.ltd for firstmail)
 
 #########################################
@@ -25,22 +25,22 @@ CHECK_POINTS = True  # show point for each account every nearly 10 minutes
 SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc influence
 
 # Mining mode
-MINING_MODE = True
+MINING_MODE = False
 
 # REGISTER PARAMETERS ONLY
-REGISTER_ACCOUNT_ONLY = False
+REGISTER_ACCOUNT_ONLY = True
 REGISTER_DELAY = (3, 7)
 
-TWO_CAPTCHA_API_KEY = ""
-ANTICAPTCHA_API_KEY = ""
-CAPMONSTER_API_KEY = ""
-CAPSOLVER_API_KEY = ""
-CAPTCHAAI_API_KEY = ""
+TWO_CAPTCHA_API_KEY = ''
+ANTICAPTCHA_API_KEY = ''
+CAPMONSTER_API_KEY = ''
+CAPSOLVER_API_KEY = ''
+CAPTCHAAI_API_KEY = ''
 
 # Use proxy also for mail handling
 USE_PROXY_FOR_IMAP = False
 
-REF_CODE = ""
+REF_CODE = ''
 
 # Captcha params, left empty
 CAPTCHA_PARAMS = {
@@ -52,7 +52,7 @@ CAPTCHA_PARAMS = {
 
 ########################################
 
-ACCOUNTS_FILE_PATH = "data/accounts.txt"
-PROXIES_FILE_PATH = "data/proxies.txt"
-WALLETS_FILE_PATH = "data/wallets.txt"
+ACCOUNTS_FILE_PATH = 'data/accounts.txt'
+PROXIES_FILE_PATH = 'data/proxies.txt'
+WALLETS_FILE_PATH = 'data/wallets.txt'
 PROXY_DB_PATH = 'data/proxies_stats.db'
