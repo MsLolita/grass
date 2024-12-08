@@ -820,6 +820,6 @@ def start_ui():
     window.show()
     sys.exit(app.exec())
 
-if __name__ == "__main__":
-     start_ui()
+#if __name__ == "__main__":
+#     start_ui()
 
