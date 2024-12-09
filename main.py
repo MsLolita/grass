@@ -194,8 +194,11 @@ if __name__ == "__main__":
             import interface
             interface.start_ui()
 
+        bot_info("GRASS_AUTO")
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(main())
+
     bot_info("GRASS_AUTO")
 
-    loop = asyncio.new_event_loop()  # 使用 asyncio 的 new_event_loop 方法
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(main())
+    asyncio.run(main())
