@@ -97,8 +97,6 @@ class GrassWs:
             })
             message['result'].pop("extension_id")
 
-        print(message)
-
         await self.send_message(json.dumps(message))
 
     async def send_ping(self):
