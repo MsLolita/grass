@@ -11,7 +11,7 @@ from core.utils.exception import WebsocketClosedException, ProxyForbiddenExcepti
 
 import os, base64
 
-from data.config import USE_2XNODE
+from data.config import NODE_TYPE
 
 
 class GrassWs:
@@ -82,16 +82,22 @@ class GrassWs:
                 "timestamp": int(time.time()),
                 "device_type": "extension",
                 "version": "4.26.2",
-                "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi"
+                "extension_id": "ilehaonighjijnmpnagapkhpcdbhclfg"
             }
         }
 
-        if USE_2XNODE:
+        if NODE_TYPE == "1_25x":
+            message['result'].update({
+                "extension_id": "lkbnfiajjmbhnfledhphioinpickokdi",
+            })
+        elif NODE_TYPE == "2x":
             message['result'].update({
                 "device_type": "desktop",
                 "version": "4.28.2",
             })
             message['result'].pop("extension_id")
+
+        print(message)
 
         await self.send_message(json.dumps(message))
 
