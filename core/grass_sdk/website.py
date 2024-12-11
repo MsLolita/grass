@@ -7,12 +7,13 @@ import time
 
 import base58
 from aiohttp import ContentTypeError, ClientConnectionError
+from pydantic.networks import pretty_email_regex
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger, loguru
 from core.utils.captcha_service import CaptchaService
 from core.utils.exception import LoginException, ProxyBlockedException, EmailApproveLinkNotFoundException, \
-    RegistrationException, CloudFlareHtmlException
+    RegistrationException, CloudFlareHtmlException, ProxyScoreNotFoundException
 from core.utils.generate.person import Person
 from core.utils.mail.mail import MailUtils
 from core.utils.session import BaseClient
@@ -240,7 +241,7 @@ class GrassRest(BaseClient):
         )
         async def approve_email_retry():
             headers = self.website_headers.copy()
-            headers['authorization'] = verify_token
+            headers['Authorization'] = verify_token
 
             url = f'https://api.getgrass.io/{endpoint}'
             response = await self.session.post(
@@ -346,7 +347,7 @@ Nonce: {timestamp}"""
     #     return await response.json()
 
     async def get_devices_info(self):
-        url = 'https://api.getgrass.io/extension/user-score'
+        url = 'https://api.getgrass.io/activeIps'  # /extension/user-score /activeDevices
 
         response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
         return await response.json()
@@ -378,19 +379,31 @@ Nonce: {timestamp}"""
             reraise=True
         )
 
-        return await handler(self.get_proxy_score_via_devices)()
+        return await handler(self.get_proxy_score_via_devices_v1)()
+
+    async def get_proxy_score_via_devices_v1(self):
+        res_json = await self.get_devices_info()
+
+        if not (isinstance(res_json, dict) and res_json.get("result", {}).get("data") is not None):
+            return
+
+        devices = res_json['result']['data']
+        await self.update_ip()
+
+        return next((device['ipScore'] for device in devices
+                     if device['ipAddress'] == self.ip), None)
 
     async def get_proxy_score_via_devices(self):
         res_json = await self.get_devices_info()
 
-        if not (isinstance(res_json, dict) and res_json.get("data", None) is not None):
+        if not (isinstance(res_json, dict) and res_json.get("result", None) is not None):
             return
 
-        devices = res_json['data']['currentDeviceData']
+        devices = res_json['result']['data']
         await self.update_ip()
 
-        return next((device['final_score'] for device in devices
-                     if device['device_ip'] == self.ip), None)
+        return next((device['ipScore'] for device in devices
+                     if device['ipAddress'] == self.ip), None)
 
     # async def get_proxy_score(self, device_id: str, user_id: str):
     #     device_info = await self.get_device_info(device_id, user_id)
