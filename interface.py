@@ -4,14 +4,16 @@ import os
 import random
 import sys
 import traceback
+import importlib
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog
 from design import Ui_MainWindow
 import aiohttp
 from art import text2art
 from imap_tools import MailboxLoginError
 from termcolor import colored, cprint
-from PySide6.QtCore import QThread, Signal, QUrl, Qt
+from PySide6.QtCore import QThread, Signal, QUrl, Qt, QTimer
 from PySide6.QtGui import QDesktopServices, QPixmap
+import time
 
 from better_proxy import Proxy
 from core import Grass
@@ -38,6 +40,7 @@ from data.config import (
     CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY, USE_PROXY_FOR_IMAP, SHOW_LOGS_RARELY, REF_CODE
 )
 
+
 def bot_info(name: str = ""):
     cprint(text2art(name), 'green')
     if sys.platform == 'win32':
@@ -46,6 +49,7 @@ def bot_info(name: str = ""):
         f"{colored('EnJoYeR <crypto/> moves:', color='light_yellow')} "
         f"{colored('https://t.me/+tdC-PXRzhnczNDli', color='light_green')}"
     )
+
 
 async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, db: AccountsDB = None):
     consumables = account.split(":")[:3]
@@ -138,6 +142,7 @@ async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, 
             except Exception as e:
                 logger.error(f"Error closing session: {e}")
 
+
 async def main():
     accounts = file_to_list(ACCOUNTS_FILE_PATH)
     if not accounts:
@@ -183,10 +188,12 @@ async def main():
     await autoreger.start(worker_task, threads)
     await db.close_connection()
 
+
 class FarmingThread(QThread):
     error = Signal(str)
     finished = Signal()
     account_error = Signal(str)
+    progress = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -199,47 +206,106 @@ class FarmingThread(QThread):
         """Принудительно очищает соединения с БД"""
         try:
             import sqlite3
-            # Закрываем все существующие соединения
             try:
                 conn = sqlite3.connect(PROXY_DB_PATH)
                 conn.close()
             except:
                 pass
 
-            # Пытаемся удалить файл БД
             if os.path.exists(PROXY_DB_PATH):
                 try:
-                    # На Windows иногда нужно несколько попыток
                     for _ in range(3):
                         try:
                             os.remove(PROXY_DB_PATH)
-                            # logger.info("База данных успешно очищена")
                             break
                         except PermissionError:
-                            import time
                             time.sleep(0.5)
                 except:
                     pass
-                    # logger.warning("Не удалось очистить базу данных")
-
         except Exception as e:
             logger.error(f"Error cleaning up database: {e}")
+
+    def run(self):
+        """Запускает асинхронный код в отдельном потоке"""
+        try:
+            # Создаем и настраиваем event loop
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+
+            # Запускаем асинхронный код через nest_asyncio
+            import nest_asyncio
+            nest_asyncio.apply(self.loop)
+            
+            # Запускаем основной код
+            self.loop.run_until_complete(self._safe_run())
+            
+        except Exception as e:
+            error_msg = f"Thread error: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            self.error.emit(error_msg)
+        finally:
+            try:
+                # Очищаем все задачи
+                pending = asyncio.all_tasks(self.loop)
+                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                
+                # Закрываем loop
+                self.loop.close()
+            except:
+                pass
+            
+            self.finished.emit()
+
+    async def _safe_run(self):
+        """Безопасный запуск асинхронного кода"""
+        try:
+            await self.run_main()
+        except asyncio.CancelledError:
+            logger.info("Task cancelled")
+        except Exception as e:
+            error_msg = f"Error in main loop: {str(e)}\n{traceback.format_exc()}"
+            logger.error(error_msg)
+            self.error.emit(error_msg)
+
+    def stop(self):
+        """Останавливает выполнение"""
+        self.should_stop = True
+        if self.loop and self.loop.is_running():
+            try:
+                # Отменяем все задачи
+                for task in asyncio.all_tasks(self.loop):
+                    self.loop.call_soon_threadsafe(task.cancel)
+                
+                # Останавливаем loop
+                self.loop.call_soon_threadsafe(self.loop.stop)
+            except:
+                pass
+
+        # Ждем завершения
+        self.wait(2000)
+        
+        # Принудительно завершаем если не завершился
+        if self.isRunning():
+            self.terminate()
 
     async def run_main(self):
         """Запускает main() с проверкой флага остановки"""
         try:
-            # Update config first to catch any config errors early
-            mining_mode, register_only = update_global_config()
+            # Периодически даем управление главному потоку
+            QApplication.processEvents()
             
+            mining_mode, register_only = update_global_config()
+
             self._cleanup_db()
             self.db = AccountsDB(PROXY_DB_PATH)
             await self.db.connect()
 
             accounts = file_to_list(ACCOUNTS_FILE_PATH)
             if not accounts:
-                error_msg = "No accounts found!"
-                logger.warning(error_msg)
-                self.error.emit(error_msg)
+                self.error.emit("No accounts found!")
+                return
+
+            if self.should_stop:
                 return
 
             proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
@@ -254,6 +320,10 @@ class FarmingThread(QThread):
                     continue
 
                 await self.db.add_account(account, proxy)
+
+                # Периодически обрабатываем события UI
+                if i % 5 == 0:  # Каждые 5 аккаунтов
+                    QApplication.processEvents()
 
             if not self.should_stop:
                 await self.db.delete_all_from_extra_proxies()
@@ -279,15 +349,16 @@ class FarmingThread(QThread):
                 }.get(True, "__MINING__ MODE")
 
                 logger.info(mode_msg)
-                
+
                 # Check captcha API key before starting if in register mode
                 if REGISTER_ACCOUNT_ONLY:
                     captcha_key = None
-                    for key_name in [TWO_CAPTCHA_API_KEY, ANTICAPTCHA_API_KEY, CAPMONSTER_API_KEY, CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY]:
+                    for key_name in [TWO_CAPTCHA_API_KEY, ANTICAPTCHA_API_KEY, CAPMONSTER_API_KEY, CAPSOLVER_API_KEY,
+                                     CAPTCHAAI_API_KEY]:
                         if key_name:
                             captcha_key = key_name
                             break
-                    
+
                     if not captcha_key:
                         error_msg = "No valid captcha solving service API key found"
                         logger.error(error_msg)
@@ -313,78 +384,60 @@ class FarmingThread(QThread):
                 except Exception as e:
                     logger.error(f"Error closing DB connection: {e}")
 
-    def run(self):
-        """Запускает асинхронный код в отдельном потоке"""
-        try:
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-            
-            try:
-                self.loop.run_until_complete(self.run_main())
-            except Exception as e:
-                error_msg = f"Error in main loop: {str(e)}"
-                logger.error(error_msg)
-                self.error.emit(error_msg)
-                # Don't re-raise, let the UI continue
-        except Exception as e:
-            error_msg = f"Thread error: {str(e)}\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            self.error.emit(error_msg)
-        finally:
-            if self.loop:
-                try:
-                    self.loop.close()
-                except:
-                    pass
-            self.finished.emit()
-
-    def stop(self):
-        """Корректно останавливает выполнение асинхронных задач"""
-        self.should_stop = True
-        
-        if self.loop and self.loop.is_running():
-            for task in asyncio.all_tasks(self.loop):
-                task.cancel()
-            
-            self.loop.call_soon_threadsafe(self.loop.stop)
-        
-        # Ждем завершения потока максимум 2 секунды
-        self.wait(2000)
 
 def update_global_config():
     """Обновляет глобальные переменные из файла конфига"""
-    with open('data/config.py', 'r', encoding='utf-8') as file:
-        config_content = file.read()
-        exec(config_content, globals())
-        
-    # Обновляем локальные значения API ключей
-    if hasattr(globals()['MainApp'], 'local_captcha_keys'):
-        for service, param_name in globals()['MainApp'].captcha_services.items():
-            globals()['MainApp'].local_captcha_keys[service] = globals().get(param_name, "")
-            
-    return globals()['MINING_MODE'], globals()['REGISTER_ACCOUNT_ONLY']
+    try:
+        # Принудительно перечитываем файл конфига
+        with open('data/config.py', 'r', encoding='utf-8') as file:
+            config_content = file.read()
+
+        # Создаем новое пространство имен для выполнения конфига
+        config_globals = {}
+        exec(config_content, config_globals)
+
+        # Обновляем глобальные переменные в текущем мо��уле
+        for key, value in config_globals.items():
+            if not key.startswith('__'):
+                globals()[key] = value
+
+        # Обновляем локальные значения API ключей если они существуют
+        if hasattr(globals().get('MainApp', None), 'local_captcha_keys'):
+            for service, param_name in globals()['MainApp'].captcha_services.items():
+                globals()['MainApp'].local_captcha_keys[service] = config_globals.get(param_name, "")
+
+        return config_globals.get('MINING_MODE', False), config_globals.get('REGISTER_ACCOUNT_ONLY', False)
+
+    except Exception as e:
+        logger.error(f"Error updating global config: {e}")
+        return False, False
+
 
 class MainApp(QMainWindow):
     def __init__(self):
-        super(MainApp, self).__init__()
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-        
-        # Добавим загрузку изображения после setupUi
         try:
-            # Загружаем изображение
-            pixmap = QPixmap("core/static/image.png")
-            if not pixmap.isNull():
-                # Устанавливаем изображение в label без масштабирования
-                self.ui.label_13.setPixmap(pixmap)
-                # Устанавливаем размер label по размеру картинки
-                self.ui.label_13.setFixedSize(pixmap.size())
-                # Отключаем масштабирование
-                self.ui.label_13.setScaledContents(False)
-            else:
-                logger.error("Failed to load image: image is null")
+            super(MainApp, self).__init__()
+            self.ui = Ui_MainWindow()
+            self.ui.setupUi(self)
+            
+            # Добавим обработку ошибок при загрузке изображения
+            try:
+                pixmap = QPixmap("core/static/image.png")
+                if not pixmap.isNull():
+                    self.ui.label_13.setPixmap(pixmap)
+                    self.ui.label_13.setFixedSize(pixmap.size())
+                    self.ui.label_13.setScaledContents(False)
+                else:
+                    logger.error("Failed to load image: image is null")
+            except Exception as e:
+                logger.error(f"Error loading image: {e}")
+
+            # Остальной код инициализации...
+            
         except Exception as e:
-            logger.error(f"Error loading image: {e}")
+            logger.error(f"Error initializing MainApp: {e}\n{traceback.format_exc()}")
+            # Пытаемся продолжить инициализацию
+            super(MainApp, self).__init__()
 
         # Добавляем атрибуты для управления задачей
         self.farming_thread = None
@@ -510,11 +563,16 @@ class MainApp(QMainWindow):
 
         # Setup logging for GUI
         logging_setup(gui_mode=True, text_edit=self.ui.textEdit_Log)
-        
+
         # Connect error handlers
         self.setup_error_handlers()
-        
+
         # Rest of initialization...
+
+        # Добавляем таймер для обновления UI
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self.process_events)
+        self.update_timer.start(100)  # Обновляем каждые 100мс
 
     def setup_error_handlers(self):
         """Setup error handlers for the UI"""
@@ -530,7 +588,7 @@ class MainApp(QMainWindow):
         self.stop_farming()
         # Show error in UI console
         self.ui.textEdit_Log.append(f"ERROR: {error_msg}")
-        
+
     def on_account_error(self, error_msg):
         """Handle individual account errors"""
         logger.warning(error_msg)
@@ -656,48 +714,73 @@ class MainApp(QMainWindow):
                     globals()[param_name] = api_key_value
                     logger.info(f"API-key for {service} updated to {api_key_value}.")
 
-            # Перезагружаем модуль конфига
-            import data.config
-            import importlib
-            importlib.reload(data.config)
-            
-            # Обновляем глобальные переменные после сохранения
+            # Принудительно перезагружаем все модули, которые могут использовать конфиг
+            modules_to_reload = [
+                'data.config',
+                'core.grass',
+                'core.autoreger',
+                'core.utils.captcha_service'
+            ]
+
+            for module_name in modules_to_reload:
+                try:
+                    module = sys.modules.get(module_name)
+                    if module:
+                        importlib.reload(module)
+                except Exception as e:
+                    logger.error(f"Error reloading module {module_name}: {e}")
+
+            # Обновляем глобальные переменные
             update_global_config()
-            
-            # Обновляем локальные значения API ключей из обновленных глобальных переменных
-            for service, param_name in self.captcha_services.items():
-                self.local_captcha_keys[service] = globals().get(param_name, "")
-                
-            logger.info("All parameters saved.")
-            
+
+            # Очищаем кэш импортов для модулей
+            importlib.invalidate_caches()
+
+            logger.info("All parameters saved and modules reloaded.")
+
         except Exception as e:
             logger.error(f"Error saving parameters: {e}")
 
     def toggle_farming(self):
-        """Переключает состояние фарминга между запуском и остановкой"""
         if not self.is_running:
-            # Обновляем конфиг и проверяем режим
-            mining_mode, register_only = update_global_config()
-            if not mining_mode or register_only:
+            self.ui.pushButton_StartFarming.setEnabled(False)  # Блокируем кнопку на время запуска
+            QApplication.processEvents()  # Обрабатываем события UI
+            
+            try:
+                # Устанавливаем правильные режимы для фарминга
                 self.update_config_param("MINING_MODE", True)
                 self.update_config_param("REGISTER_ACCOUNT_ONLY", False)
+                
+                # Обновляем конфиг после изменений
                 update_global_config()
-            self.start_farming()
+                
+                self.is_running = True
+                self.ui.pushButton_StartFarming.setText("Stop Farming")
+                
+                self.farming_thread = FarmingThread()
+                self.farming_thread.error.connect(self.on_farming_error)
+                self.farming_thread.finished.connect(self.on_farming_finished)
+                self.farming_thread.start()
+            finally:
+                self.ui.pushButton_StartFarming.setEnabled(True)
         else:
             self.stop_farming()
 
     def start_farming(self):
         """Запускает процесс фарминга"""
         try:
+            # Принудительно обновляем конфиг перед запуском
+            update_global_config()
+
             self.is_running = True
             self.ui.pushButton_StartFarming.setText("Stop Farming")
-            
+
             # Создаем и запускаем поток
             self.farming_thread = FarmingThread()
             self.farming_thread.error.connect(self.on_farming_error)
             self.farming_thread.finished.connect(self.on_farming_finished)
             self.farming_thread.start()
-            
+
         except Exception as e:
             logger.error(f"Error starting mining: {e}")
             self.stop_farming()
@@ -707,17 +790,27 @@ class MainApp(QMainWindow):
         try:
             if not self.is_running:
                 return
-                
-            self.is_running = False
-            self.ui.pushButton_StartFarming.setText("Start Farming")
+
+            self.ui.pushButton_StartFarming.setEnabled(False)  # Блокируем кнопку
+            QApplication.processEvents()
             
-            if self.farming_thread:
-                self.farming_thread.stop()
-                self.farming_thread.wait()  # Ждем завершения потока
-                self.farming_thread = None
-                
-            logger.info("Mining stopped")
-            
+            try:
+                self.is_running = False
+                self.ui.pushButton_StartFarming.setText("Start Farming")
+
+                if self.farming_thread:
+                    self.farming_thread.stop()
+                    self.farming_thread.wait()
+                    self.farming_thread = None
+
+                # Сбрасываем режимы
+                self.update_config_param("MINING_MODE", False)
+                update_global_config()
+
+                logger.info("Mining stopped")
+            finally:
+                self.ui.pushButton_StartFarming.setEnabled(True)
+
         except Exception as e:
             logger.error(f"Error stopping mining: {e}")
 
@@ -734,37 +827,67 @@ class MainApp(QMainWindow):
     def closeEvent(self, event):
         """Обработчик закрытия окна"""
         try:
+            # Останавливаем все процессы
             if self.is_running:
-                self.stop_farming()
+                try:
+                    self.stop_farming()
+                except:
+                    pass
+                try:
+                    self.stop_registration()
+                except:
+                    pass
+            
+            # Принудительно завершаем все потоки
+            if self.farming_thread:
+                try:
+                    self.farming_thread.stop()
+                    self.farming_thread.wait(1000)  # Ждем максимум 1 секунду
+                    if self.farming_thread.isRunning():
+                        self.farming_thread.terminate()
+                except:
+                    pass
+
+            # Закрываем приложение
+            QApplication.instance().quit()
+            
+            # Принудительно завершаем процесс
             event.accept()
+            import os
+            os._exit(0)  # Принудительное завершение процесса
+            
         except:
+            # В случае любой ошибки принудительно завершаем процесс
             event.accept()
+            import os
+            os._exit(0)
 
     def start_registration(self):
         """Запускает процесс регистрации"""
-        logger.info({CAPMONSTER_API_KEY})
         try:
-            # Обновляем конфиг и проверяем режим
+            # Принудительно обновляем конфиг перед запуском
+            update_global_config()
+
+            # Проверяем и обновляем режимы
             mining_mode, register_only = update_global_config()
             if mining_mode or not register_only:
                 self.update_config_param("MINING_MODE", False)
                 self.update_config_param("REGISTER_ACCOUNT_ONLY", True)
-                update_global_config()
-            
-            # Если уже запущен процесс - останавливаем его
+                update_global_config()  # Обновляем еще раз после изменений
+
+            # Остальной код запуска...
             if self.is_running:
                 self.stop_farming()
-            
-            # Запускаем процесс регистрации
+
             self.is_running = True
             self.ui.pushButton_Registration.setText("Stop register")
             self.ui.pushButton_StartFarming.setEnabled(False)
-            
+
             self.farming_thread = FarmingThread()
             self.farming_thread.error.connect(self.on_registration_error)
             self.farming_thread.finished.connect(self.on_registration_finished)
             self.farming_thread.start()
-            
+
         except Exception as e:
             logger.error(f"Error starting registration: {e}")
             self.stop_registration()
@@ -774,18 +897,18 @@ class MainApp(QMainWindow):
         try:
             if not self.is_running:
                 return
-                
+
             self.is_running = False
             self.ui.pushButton_Registration.setText("Start register")
             self.ui.pushButton_StartFarming.setEnabled(True)
-            
+
             if self.farming_thread:
                 self.farming_thread.stop()
                 self.farming_thread.wait()
                 self.farming_thread = None
-                
+
             logger.info("Registration stopped")
-            
+
         except Exception as e:
             logger.error(f"Error stopping registration: {e}")
 
@@ -814,12 +937,44 @@ class MainApp(QMainWindow):
         QDesktopServices.openUrl(QUrl("https://gemups.com/"))
         logger.info("Opening Web3 products page...")
 
-def start_ui():
-    app = QApplication(sys.argv)
-    window = MainApp()
-    window.show()
-    sys.exit(app.exec())
+    def process_events(self):
+        """Обрабатывает события UI"""
+        QApplication.processEvents()
 
-#if __name__ == "__main__":
-#     start_ui()
+
+def global_exception_handler(exctype, value, traceback_obj):
+    """Глобальный обработчик исключений"""
+    error_msg = f"Uncaught exception: {exctype.__name__}: {value}"
+    logger.error(error_msg)
+    logger.error("Traceback:", exc_info=(exctype, value, traceback_obj))
+
+def start_ui():
+    """Запускает UI с базовой обработкой ошибок"""
+    try:
+        # Устанавливаем глобальный обработчик исключений
+        sys.excepthook = global_exception_handler
+        
+        # Инициализируем приложение
+        app = QApplication(sys.argv)
+        
+        # Отключаем автоматическое закрытие
+        app.setQuitOnLastWindowClosed(False)
+        
+        # Создаем и показываем главное окно
+        window = MainApp()
+        window.show()
+        
+        # Запускаем главный цикл
+        return app.exec()
+        
+    except Exception as e:
+        logger.error(f"Critical error in UI: {str(e)}\n{traceback.format_exc()}")
+        return 1
+
+if __name__ == "__main__":
+    try:
+        sys.exit(start_ui())
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}\n{traceback.format_exc()}")
+        sys.exit(1)
 

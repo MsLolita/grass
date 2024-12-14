@@ -28,7 +28,7 @@ SHOW_LOGS_RARELY = False  # not always show info about actions to decrease pc in
 MINING_MODE = False
 
 # REGISTER PARAMETERS ONLY
-REGISTER_ACCOUNT_ONLY = True
+REGISTER_ACCOUNT_ONLY = False
 REGISTER_DELAY = (3, 7)
 
 TWO_CAPTCHA_API_KEY = ''
