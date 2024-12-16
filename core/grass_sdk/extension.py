@@ -119,6 +119,9 @@ class GrassWs:
         http_info = await self.receive_message()
         result = await self.build_http_request(http_info['data'])
 
+        if result == {}:
+            raise ConnectionResetError("Not full http request action.")
+
         message = json.dumps(
             {
                 "id": http_info["id"],
@@ -130,6 +133,9 @@ class GrassWs:
         await self.send_message(message)
 
     async def build_http_request(self, request_data):
+        if request_data.get("method") is None:
+            return {}
+
         method = request_data['method']
         url = request_data['url']
         headers = request_data['headers']

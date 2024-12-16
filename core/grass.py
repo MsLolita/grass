@@ -139,7 +139,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 # await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay for some minutes...", sleep_time=60)
             # except Exception as e:
             #     logger.info(f"{self.id} | {traceback.format_exc()}")
-            await self.failure_handler(limit=2)
+            await self.failure_handler(limit=3)
 
             await asyncio.sleep(5, 10)
 
