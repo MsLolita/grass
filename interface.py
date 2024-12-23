@@ -1,35 +1,12 @@
-import asyncio
-import ctypes
 import os
-import random
 import sys
-import traceback
-import importlib
 from PySide6.QtWidgets import QApplication, QMainWindow, QFileDialog
-from design import Ui_MainWindow
-import aiohttp
-from art import text2art
-from imap_tools import MailboxLoginError
-from termcolor import colored, cprint
-from PySide6.QtCore import QThread, Signal, QUrl, Qt, QTimer
 from PySide6.QtGui import QDesktopServices, QPixmap
-import time
-
-from better_proxy import Proxy
-from core import Grass
-from core.autoreger import AutoReger
-from core.utils import logger, file_to_list
-from core.utils.logger import logger, logging_setup
-from core.utils.accounts_db import AccountsDB
-from core.utils.exception import EmailApproveLinkNotFoundException, LoginException, RegistrationException
-from core.utils.generate.person import Person
-
-# Пути по умолчанию
-DEFAULT_ACCOUNTS_FILE_PATH = 'data/accounts.txt'
-DEFAULT_PROXIES_FILE_PATH = 'data/proxies.txt'
-DEFAULT_WALLETS_FILE_PATH = 'data/wallets.txt'
-DEFAULT_PROXY_DB_PATH = 'data/proxies_stats.db'
-
+from design import Ui_MainWindow
+from core.utils.logger import logging_setup, logger
+import importlib
+import asyncio
+import json
 from data.config import (
     ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, REGISTER_ACCOUNT_ONLY, THREADS,
     REGISTER_DELAY, CLAIM_REWARDS_ONLY, APPROVE_EMAIL, APPROVE_WALLET_ON_EMAIL,
@@ -37,352 +14,75 @@ from data.config import (
     SINGLE_IMAP_ACCOUNT, SEMI_AUTOMATIC_APPROVE_LINK, PROXY_DB_PATH, MIN_PROXY_SCORE,
     EMAIL_FOLDER, IMAP_DOMAIN, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, CHECK_POINTS,
     TWO_CAPTCHA_API_KEY, ANTICAPTCHA_API_KEY, CAPMONSTER_API_KEY,
-    CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY, USE_PROXY_FOR_IMAP, SHOW_LOGS_RARELY, REF_CODE
+    CAPSOLVER_API_KEY, CAPTCHAAI_API_KEY, USE_PROXY_FOR_IMAP, SHOW_LOGS_RARELY, REF_CODE,
+    NODE_TYPE
 )
+from PySide6.QtCore import QThread, Signal, QUrl
+from main import main
+
+# Пути по умолчанию
+DEFAULT_ACCOUNTS_FILE_PATH = 'data/accounts.txt'
+DEFAULT_PROXIES_FILE_PATH = 'data/proxies.txt'
+DEFAULT_WALLETS_FILE_PATH = 'data/wallets.txt'
+DEFAULT_PROXY_DB_PATH = 'data/proxies_stats.db'
 
 
-def bot_info(name: str = ""):
-    cprint(text2art(name), 'green')
-    if sys.platform == 'win32':
-        ctypes.windll.kernel32.SetConsoleTitleW(f"{name}")
-    print(
-        f"{colored('EnJoYeR <crypto/> moves:', color='light_yellow')} "
-        f"{colored('https://t.me/+tdC-PXRzhnczNDli', color='light_green')}"
-    )
 
-
-async def worker_task(_id, account: str, proxy: str = None, wallet: str = None, db: AccountsDB = None):
-    consumables = account.split(":")[:3]
-    imap_pass = None
-
-    if SINGLE_IMAP_ACCOUNT:
-        consumables.append(SINGLE_IMAP_ACCOUNT.split(":")[1])
-
-    if len(consumables) == 1:
-        email = consumables[0]
-        password = Person().random_string(8)
-    elif len(consumables) == 2:
-        email, password = consumables
-    else:
-        email, password, imap_pass = consumables
-
-    grass = None
-
-    try:
-        grass = Grass(_id, email, password, proxy, db)
-
-        if MINING_MODE:
-            await asyncio.sleep(random.uniform(1, 2) * _id)
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-        else:
-            await asyncio.sleep(random.uniform(*REGISTER_DELAY))
-            logger.info(f"Starting №{_id} | {email} | {password} | {proxy}")
-
-        if REGISTER_ACCOUNT_ONLY:
-            await grass.create_account()
-        elif APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL:
-            await grass.enter_account()
-            user_info = await grass.retrieve_user()
-
-            if APPROVE_EMAIL:
-                if user_info['result']['data'].get("isVerified"):
-                    logger.info(f"{grass.id} | {grass.email} email already verified!")
-                else:
-                    if SEMI_AUTOMATIC_APPROVE_LINK:
-                        imap_pass = "placeholder"
-                    elif imap_pass is None:
-                        raise TypeError("IMAP password is not provided")
-                    await grass.confirm_email(imap_pass)
-            if CONNECT_WALLET:
-                if user_info['result']['data'].get("walletAddress"):
-                    logger.info(f"{grass.id} | {grass.email} wallet already linked!")
-                else:
-                    await grass.link_wallet(wallet)
-
-            if user_info['result']['data'].get("isWalletAddressVerified"):
-                logger.info(f"{grass.id} | {grass.email} wallet already verified!")
-            else:
-                if SEND_WALLET_APPROVE_LINK_TO_EMAIL:
-                    await grass.send_approve_link(endpoint="sendWalletAddressEmailVerification")
-                if APPROVE_WALLET_ON_EMAIL:
-                    if SEMI_AUTOMATIC_APPROVE_LINK:
-                        imap_pass = "placeholder"
-                    elif imap_pass is None:
-                        raise TypeError("IMAP password is not provided")
-                    await grass.confirm_wallet_by_email(imap_pass)
-        elif CLAIM_REWARDS_ONLY:
-            await grass.claim_rewards()
-        else:
-            await grass.start()
-
-        return True
-    except (LoginException, RegistrationException) as e:
-        error_msg = f"{_id} | {e}"
-        logger.warning(error_msg)
-        return False
-    except MailboxLoginError as e:
-        error_msg = f"{_id} | {e}"
-        logger.error(error_msg)
-        return False
-    except EmailApproveLinkNotFoundException as e:
-        logger.warning(e)
-        return False
-    except aiohttp.ClientError as e:
-        error_msg = f"{_id} | Some connection error: {e}..."
-        logger.warning(error_msg)
-        return False
-    except Exception as e:
-        error_msg = f"{_id} | not handled exception | error: {e}\n{traceback.format_exc()}"
-        logger.error(error_msg)
-        return False
-    finally:
-        if grass:
-            try:
-                await grass.session.close()
-            except Exception as e:
-                logger.error(f"Error closing session: {e}")
-
-
-async def main():
-    accounts = file_to_list(ACCOUNTS_FILE_PATH)
-    if not accounts:
-        logger.warning("No accounts found!")
-        return
-
-    proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
-
-    if os.path.exists(PROXY_DB_PATH):
-        os.remove(PROXY_DB_PATH)
-
-    db = AccountsDB(PROXY_DB_PATH)
-    await db.connect()
-
-    for i, account in enumerate(accounts):
-        account = account.split(":")[0]
-        proxy = proxies[i] if len(proxies) > i else None
-
-        if await db.proxies_exist(proxy) or not proxy:
-            continue
-
-        await db.add_account(account, proxy)
-
-    await db.delete_all_from_extra_proxies()
-    await db.push_extra_proxies(proxies[len(accounts):])
-
-    autoreger = AutoReger.get_accounts(
-        (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, WALLETS_FILE_PATH),
-        with_id=True,
-        static_extra=(db,)
-    )
-
-    threads = THREADS if not MINING_MODE else len(autoreger.accounts)
-
-    mode_msg = {
-        REGISTER_ACCOUNT_ONLY: "__REGISTER__ MODE",
-        APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL: "__APPROVE__ MODE",
-        CLAIM_REWARDS_ONLY: "__CLAIM__ MODE"
-    }.get(True, "__MINING__ MODE")
-
-    logger.info(mode_msg)
-
-    await autoreger.start(worker_task, threads)
-    await db.close_connection()
-
-
-class FarmingThread(QThread):
-    error = Signal(str)
+class AsyncWorker(QThread):
     finished = Signal()
-    account_error = Signal(str)
-    progress = Signal(str)
+    error = Signal(str)
+    stopped = Signal()
 
-    def __init__(self):
-        super().__init__()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.is_running = False
         self.loop = None
-        self.should_stop = False
-        self.db = None
-        self._cleanup_db()
-
-    def _cleanup_db(self):
-        """Принудительно очищает соединения с БД"""
-        try:
-            import sqlite3
-            try:
-                conn = sqlite3.connect(PROXY_DB_PATH)
-                conn.close()
-            except:
-                pass
-
-            if os.path.exists(PROXY_DB_PATH):
-                try:
-                    for _ in range(3):
-                        try:
-                            os.remove(PROXY_DB_PATH)
-                            break
-                        except PermissionError:
-                            time.sleep(0.5)
-                except:
-                    pass
-        except Exception as e:
-            logger.error(f"Error cleaning up database: {e}")
-
-    def run(self):
-        """Запускает асинхронный код в отдельном потоке"""
-        try:
-            # Создаем и настраиваем event loop
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
-
-            # Запускаем асинхронный код через nest_asyncio
-            import nest_asyncio
-            nest_asyncio.apply(self.loop)
-            
-            # Запускаем основной код
-            self.loop.run_until_complete(self._safe_run())
-            
-        except Exception as e:
-            error_msg = f"Thread error: {str(e)}\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            self.error.emit(error_msg)
-        finally:
-            try:
-                # Очищаем все задачи
-                pending = asyncio.all_tasks(self.loop)
-                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                
-                # Закрываем loop
-                self.loop.close()
-            except:
-                pass
-            
-            self.finished.emit()
-
-    async def _safe_run(self):
-        """Безопасный запуск асинхронного кода"""
-        try:
-            await self.run_main()
-        except asyncio.CancelledError:
-            logger.info("Task cancelled")
-        except Exception as e:
-            error_msg = f"Error in main loop: {str(e)}\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            self.error.emit(error_msg)
-
+        
     def stop(self):
-        """Останавливает выполнение"""
-        self.should_stop = True
+        """Безопасная остановка воркера"""
+        self.is_running = False
         if self.loop and self.loop.is_running():
             try:
-                # Отменяем все задачи
+                # Отменяем все задачи в текущем loop
                 for task in asyncio.all_tasks(self.loop):
-                    self.loop.call_soon_threadsafe(task.cancel)
-                
-                # Останавливаем loop
-                self.loop.call_soon_threadsafe(self.loop.stop)
-            except:
-                pass
-
-        # Ждем завершения
-        self.wait(2000)
+                    task.cancel()
+                self.stopped.emit()
+            except Exception as e:
+                logger.error(f"Ошибка при остановке: {e}")
+                self.terminate()  # Принудительная остановка в случае ошибки
         
-        # Принудительно завершаем если не завершился
-        if self.isRunning():
-            self.terminate()
-
-    async def run_main(self):
-        """Запускает main() с проверкой флага остановки"""
+    def run(self):
         try:
-            # Периодически даем управление главному потоку
-            QApplication.processEvents()
+            self.is_running = True
             
-            mining_mode, register_only = update_global_config()
-
-            self._cleanup_db()
-            self.db = AccountsDB(PROXY_DB_PATH)
-            await self.db.connect()
-
-            accounts = file_to_list(ACCOUNTS_FILE_PATH)
-            if not accounts:
-                self.error.emit("No accounts found!")
-                return
-
-            if self.should_stop:
-                return
-
-            proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
-
-            for i, account in enumerate(accounts):
-                if self.should_stop:
-                    break
-                account = account.split(":")[0]
-                proxy = proxies[i] if len(proxies) > i else None
-
-                if await self.db.proxies_exist(proxy) or not proxy:
-                    continue
-
-                await self.db.add_account(account, proxy)
-
-                # Периодически обрабатываем события UI
-                if i % 5 == 0:  # Каждые 5 аккаунтов
-                    QApplication.processEvents()
-
-            if not self.should_stop:
-                await self.db.delete_all_from_extra_proxies()
-                await self.db.push_extra_proxies(proxies[len(accounts):])
-
-                autoreger = AutoReger.get_accounts(
-                    (ACCOUNTS_FILE_PATH, PROXIES_FILE_PATH, WALLETS_FILE_PATH),
-                    with_id=True,
-                    static_extra=(self.db,)
-                )
-
-                if not autoreger:
-                    error_msg = "Failed to initialize AutoReger"
-                    logger.error(error_msg)
-                    self.error.emit(error_msg)
-                    return
-
-                threads = THREADS if not MINING_MODE else len(autoreger.accounts)
-                mode_msg = {
-                    REGISTER_ACCOUNT_ONLY: "__REGISTER__ MODE",
-                    APPROVE_EMAIL or CONNECT_WALLET or SEND_WALLET_APPROVE_LINK_TO_EMAIL or APPROVE_WALLET_ON_EMAIL: "__APPROVE__ MODE",
-                    CLAIM_REWARDS_ONLY: "__CLAIM__ MODE"
-                }.get(True, "__MINING__ MODE")
-
-                logger.info(mode_msg)
-
-                # Check captcha API key before starting if in register mode
-                if REGISTER_ACCOUNT_ONLY:
-                    captcha_key = None
-                    for key_name in [TWO_CAPTCHA_API_KEY, ANTICAPTCHA_API_KEY, CAPMONSTER_API_KEY, CAPSOLVER_API_KEY,
-                                     CAPTCHAAI_API_KEY]:
-                        if key_name:
-                            captcha_key = key_name
-                            break
-
-                    if not captcha_key:
-                        error_msg = "No valid captcha solving service API key found"
-                        logger.error(error_msg)
-                        self.error.emit(error_msg)
-                        return
-
+            if sys.platform == 'win32':
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+            
+            try:
+                self.loop.run_until_complete(main())
+                if self.is_running:
+                    self.finished.emit()
+            except asyncio.CancelledError:
+                logger.info("Процесс был остановлен пользователем")
+                self.stopped.emit()
+            except Exception as e:
+                if self.is_running:
+                    self.error.emit(str(e))
+                    logger.error(f"Ошибка: {e}")
+            finally:
                 try:
-                    await autoreger.start(worker_task, threads)
-                except Exception as e:
-                    error_msg = f"Error in autoreger: {str(e)}\n{traceback.format_exc()}"
-                    logger.error(error_msg)
-                    self.error.emit(error_msg)
-                    # Continue execution despite errors
-
-        except Exception as e:
-            error_msg = f"Critical error: {str(e)}\n{traceback.format_exc()}"
-            logger.error(error_msg)
-            self.error.emit(error_msg)
+                    if self.loop and self.loop.is_running():
+                        self.loop.stop()
+                    if self.loop:
+                        self.loop.close()
+                except:
+                    pass
+                self.loop = None
         finally:
-            if self.db:
-                try:
-                    await self.db.close_connection()
-                except Exception as e:
-                    logger.error(f"Error closing DB connection: {e}")
+            self.is_running = False
 
 
 def update_global_config():
@@ -396,7 +96,7 @@ def update_global_config():
         config_globals = {}
         exec(config_content, config_globals)
 
-        # Обновляем глобальные переменные в текущем мо��уле
+        # Обновляем глобальные переменные в текущем моуле
         for key, value in config_globals.items():
             if not key.startswith('__'):
                 globals()[key] = value
@@ -413,42 +113,47 @@ def update_global_config():
         return False, False
 
 
-class MainApp(QMainWindow):
+#mining_mode, register_only = update_global_config()
+class GrassInterface(QMainWindow):
     def __init__(self):
-        try:
-            super(MainApp, self).__init__()
-            self.ui = Ui_MainWindow()
-            self.ui.setupUi(self)
-            
-            # Добавим обработку ошибок при загрузке изображения
-            try:
-                pixmap = QPixmap("core/static/image.png")
-                if not pixmap.isNull():
-                    self.ui.label_13.setPixmap(pixmap)
-                    self.ui.label_13.setFixedSize(pixmap.size())
-                    self.ui.label_13.setScaledContents(False)
-                else:
-                    logger.error("Failed to load image: image is null")
-            except Exception as e:
-                logger.error(f"Error loading image: {e}")
-
-            # Остальной код инициализации...
-            
-        except Exception as e:
-            logger.error(f"Error initializing MainApp: {e}\n{traceback.format_exc()}")
-            # Пытаемся продолжить инициализацию
-            super(MainApp, self).__init__()
-
-        # Добавляем атрибуты для управления задачей
-        self.farming_thread = None
-        self.is_running = False
-
-        # Настройка логирования для GUI
+        super(GrassInterface, self).__init__()
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+        
+        # Инициализация логгера
         logging_setup(gui_mode=True, text_edit=self.ui.textEdit_Log)
+        mining_mode, register_only = update_global_config()
 
-        # Устанавлваем первую вкладку активной
-        self.ui.tabWidget.setCurrentIndex(0)
-
+        # Добавим обработку ошибок при загрузке изображения
+        try:
+            # Установка иконки окна
+            self.setWindowTitle("Grass")
+            window_icon = QPixmap("core/static/ico.png")
+            if not window_icon.isNull():
+                self.setWindowIcon(window_icon)
+            else:
+                logger.error("Failed to load window icon: icon is null")
+        
+            # Загрузка основного изображения
+            pixmap = QPixmap("core/static/image.png")
+            if not pixmap.isNull():
+                self.ui.label_13.setPixmap(pixmap)
+                self.ui.label_13.setFixedSize(pixmap.size())
+                self.ui.label_13.setScaledContents(False)
+            else:
+                logger.error("Failed to load image: image is null")
+        except Exception as e:
+            logger.error(f"Error loading images: {e}")
+        
+        # Словарь для хранения API ключей
+        self.local_captcha_keys = {
+            "TWO_CAPTCHA": TWO_CAPTCHA_API_KEY,
+            "ANTICAPTCHA": ANTICAPTCHA_API_KEY,
+            "CAPMONSTER": CAPMONSTER_API_KEY,
+            "CAPSOLVER": CAPSOLVER_API_KEY,
+            "CAPTCHAAI": CAPTCHAAI_API_KEY
+        }
+        
         # Связь значений ComboBox с параметрами конфига
         self.captcha_services = {
             "TWO_CAPTCHA": "TWO_CAPTCHA_API_KEY",
@@ -457,16 +162,7 @@ class MainApp(QMainWindow):
             "CAPSOLVER": "CAPSOLVER_API_KEY",
             "CAPTCHAAI": "CAPTCHAAI_API_KEY"
         }
-
-        # Локальное хранилище значений API-ключей
-        self.local_captcha_keys = {
-            "TWO_CAPTCHA": globals().get("TWO_CAPTCHA_API_KEY", ""),
-            "ANTICAPTCHA": globals().get("ANTICAPTCHA_API_KEY", ""),
-            "CAPMONSTER": globals().get("CAPMONSTER_API_KEY", ""),
-            "CAPSOLVER": globals().get("CAPSOLVER_API_KEY", ""),
-            "CAPTCHAAI": globals().get("CAPTCHAAI_API_KEY", "")
-        }
-
+        
         # Сохраняем начальные значения параметров
         self.initial_params = {
             'THREADS': THREADS,
@@ -486,8 +182,9 @@ class MainApp(QMainWindow):
             'SHOW_LOGS_RARELY': SHOW_LOGS_RARELY,
             'CLAIM_REWARDS_ONLY': CLAIM_REWARDS_ONLY,
             'REF_CODE': REF_CODE,
+            'NODE_TYPE': NODE_TYPE,
         }
-
+        
         # Инициализация полей
         self.ui.lineEdit_Threads.setText(str(THREADS))
         self.ui.lineEdit_MinProxyScore.setText(str(MIN_PROXY_SCORE))
@@ -546,60 +243,31 @@ class MainApp(QMainWindow):
         self.ui.lineEdit_Min.textChanged.connect(self.update_register_delay)
         self.ui.lineEdit_Max.textChanged.connect(self.update_register_delay)
 
-        # Добавляем подключение кнопки StartFarming
-        self.ui.pushButton_StartFarming.clicked.connect(self.toggle_farming)
-
-        # Добавляем подключение кнопки Registration
+        # Подключение основных кнопок
+        self.ui.pushButton_StartFarming.clicked.connect(self.start_farming)
         self.ui.pushButton_Registration.clicked.connect(self.start_registration)
 
-        # Добавьте эти строки после других подключений кнопок
+        # Подключение информационных кнопок
         self.ui.pushButton_Instructions.clicked.connect(self.open_instructions)
         self.ui.pushButton_more.clicked.connect(self.open_telegram)
         self.ui.pushButton_Web3.clicked.connect(self.open_web3)
 
-        # Initialize thread
-        self.farming_thread = None
-        self.is_running = False
+        # Подключаем обработчик изменения NODE_TYPE
+        self.ui.comboBox_NODE_TYPE.currentTextChanged.connect(self.update_node_type)
+        
+        # Устанавливаем текущее значение NODE_TYPE
+        self.set_initial_node_type()
 
-        # Setup logging for GUI
-        logging_setup(gui_mode=True, text_edit=self.ui.textEdit_Log)
+        self.worker = None
+        self.is_farming = False
 
-        # Connect error handlers
-        self.setup_error_handlers()
 
-        # Rest of initialization...
-
-        # Добавляем таймер для обновления UI
-        self.update_timer = QTimer()
-        self.update_timer.timeout.connect(self.process_events)
-        self.update_timer.start(100)  # Обновляем каждые 100мс
-
-    def setup_error_handlers(self):
-        """Setup error handlers for the UI"""
-        if self.farming_thread:
-            self.farming_thread.error.connect(self.on_error)
-            self.farming_thread.finished.connect(self.on_finished)
-            self.farming_thread.account_error.connect(self.on_account_error)
-
-    def on_error(self, error_msg):
-        """Handle errors in the UI"""
-        logger.error(error_msg)
-        # Make sure UI stays responsive
-        self.stop_farming()
-        # Show error in UI console
-        self.ui.textEdit_Log.append(f"ERROR: {error_msg}")
-
-    def on_account_error(self, error_msg):
-        """Handle individual account errors"""
-        logger.warning(error_msg)
-        # Show in UI console but don't stop
-        self.ui.textEdit_Log.append(f"Account Error: {error_msg}")
-
-    def on_finished(self):
-        """Handle thread completion"""
-        logger.info("Process completed")
-        self.stop_farming()
-        self.ui.textEdit_Log.append("Process completed")
+    def update_file_path(self, param_name, button):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Choose a file", "", "All Files (*)")
+        if file_path:
+            self.update_config_param(param_name, file_path)
+            button.setText(f"Updated: {file_path.split('/')[-1]}")
+            logger.info(f"{param_name} updated to {file_path}.")
 
     def update_config_param(self, param_name, value):
         try:
@@ -622,55 +290,6 @@ class MainApp(QMainWindow):
             logger.info(f"Parameter {param_name} changed to {value}.")
         except Exception as e:
             logger.error(f"Error updating parameter {param_name}: {e}")
-
-    def convert_to_bool(self, value):
-        if isinstance(value, str):
-            return value.lower() == "true"
-        return bool(value)
-
-    def update_lineedit_with_local_values(self):
-        current_service = self.ui.comboBox_CaptchaService.currentText()
-        if current_service in self.local_captcha_keys:
-            self.ui.lineEdit_CapthaAPI.setText(self.local_captcha_keys[current_service])
-
-    def update_local_value(self):
-        current_service = self.ui.comboBox_CaptchaService.currentText()
-        if current_service in self.local_captcha_keys:
-            self.local_captcha_keys[current_service] = self.ui.lineEdit_CapthaAPI.text()
-
-    def update_file_path(self, param_name, button):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Choose a file", "", "All Files (*)")
-        if file_path:
-            self.update_config_param(param_name, file_path)
-            button.setText(f"Updated: {file_path.split('/')[-1]}")
-            logger.info(f"{param_name} updated to {file_path}.")
-
-    def reset_to_default(self):
-        default_paths = {
-            "ACCOUNTS_FILE_PATH": DEFAULT_ACCOUNTS_FILE_PATH,
-            "PROXIES_FILE_PATH": DEFAULT_PROXIES_FILE_PATH,
-            "WALLETS_FILE_PATH": DEFAULT_WALLETS_FILE_PATH,
-            "PROXY_DB_PATH": DEFAULT_PROXY_DB_PATH,
-        }
-
-        for param_name, default_path in default_paths.items():
-            self.update_config_param(param_name, default_path)
-            self.initial_params[param_name] = default_path
-            logger.info(f"{param_name} updated to {default_path}.")
-
-        self.ui.pushButton_AccountsFile.setText(f"{DEFAULT_ACCOUNTS_FILE_PATH.split('/')[-1]}")
-        self.ui.pushButton_ProxyFile.setText(f"{DEFAULT_PROXIES_FILE_PATH.split('/')[-1]}")
-        self.ui.pushButton_WalletsFile.setText(f"{DEFAULT_WALLETS_FILE_PATH.split('/')[-1]}")
-        self.ui.pushButton_ProxyDB.setText(f"{DEFAULT_PROXY_DB_PATH.split('/')[-1]}")
-
-    def update_register_delay(self):
-        try:
-            min_delay = int(self.ui.lineEdit_Min.text())
-            max_delay = int(self.ui.lineEdit_Max.text())
-            if min_delay >= 0 and max_delay > min_delay:
-                self.update_config_param("REGISTER_DELAY", (min_delay, max_delay))
-        except ValueError:
-            logger.error("Invalid REGISTER_DELAY.")
 
     def save_changes(self):
         try:
@@ -741,186 +360,127 @@ class MainApp(QMainWindow):
         except Exception as e:
             logger.error(f"Error saving parameters: {e}")
 
-    def toggle_farming(self):
-        if not self.is_running:
-            self.ui.pushButton_StartFarming.setEnabled(False)  # Блокируем кнопку на время запуска
-            QApplication.processEvents()  # Обрабатываем события UI
-            
-            try:
-                # Устанавливаем правильные режимы для фарминга
-                self.update_config_param("MINING_MODE", True)
-                self.update_config_param("REGISTER_ACCOUNT_ONLY", False)
-                
-                # Обновляем конфиг после изменений
-                update_global_config()
-                
-                self.is_running = True
-                self.ui.pushButton_StartFarming.setText("Stop Farming")
-                
-                self.farming_thread = FarmingThread()
-                self.farming_thread.error.connect(self.on_farming_error)
-                self.farming_thread.finished.connect(self.on_farming_finished)
-                self.farming_thread.start()
-            finally:
-                self.ui.pushButton_StartFarming.setEnabled(True)
-        else:
-            self.stop_farming()
+    def log(self, message):
+        logger.info(message)
 
     def start_farming(self):
-        """Запускает процесс фарминга"""
         try:
-            # Принудительно обновляем конфиг перед запуском
-            update_global_config()
-
-            self.is_running = True
-            self.ui.pushButton_StartFarming.setText("Stop Farming")
-
-            # Создаем и запускаем поток
-            self.farming_thread = FarmingThread()
-            self.farming_thread.error.connect(self.on_farming_error)
-            self.farming_thread.finished.connect(self.on_farming_finished)
-            self.farming_thread.start()
-
-        except Exception as e:
-            logger.error(f"Error starting mining: {e}")
-            self.stop_farming()
-
-    def stop_farming(self):
-        """Останавливает процесс фарминга"""
-        try:
-            if not self.is_running:
+            if self.is_farming:
+                # Останавливаем процесс
+                if self.worker:
+                    logger.info("Остановка фарминга...")
+                    self.worker.stop()
+                    self.ui.pushButton_StartFarming.setEnabled(False)
                 return
 
-            self.ui.pushButton_StartFarming.setEnabled(False)  # Блокируем кнопку
-            QApplication.processEvents()
-            
-            try:
-                self.is_running = False
-                self.ui.pushButton_StartFarming.setText("Start Farming")
+            # Проверяем и очищаем старый воркер если он есть
+            if self.worker:
+                self.worker.quit()
+                self.worker.wait()
+                self.worker = None
 
-                if self.farming_thread:
-                    self.farming_thread.stop()
-                    self.farming_thread.wait()
-                    self.farming_thread = None
+            # Запускаем процесс
+            self.save_changes()
+            logger.info("Запуск фарминга...")
 
-                # Сбрасываем режимы
-                self.update_config_param("MINING_MODE", False)
-                update_global_config()
+            self.worker = AsyncWorker(self)
+            self.worker.finished.connect(self.on_worker_finished)
+            self.worker.error.connect(self.on_worker_error)
+            self.worker.stopped.connect(self.on_worker_stopped)
+            self.worker.start()
 
-                logger.info("Mining stopped")
-            finally:
-                self.ui.pushButton_StartFarming.setEnabled(True)
+            self.ui.pushButton_StartFarming.setText("Stop Farming")
+            self.is_farming = True
 
         except Exception as e:
-            logger.error(f"Error stopping mining: {e}")
-
-    def on_farming_error(self, error_msg):
-        """Обработчик ошибок фарминга"""
-        logger.error(f"Error in mining: {error_msg}")
-        self.stop_farming()
-
-    def on_farming_finished(self):
-        """Обработчик завершения фарминга"""
-        logger.info("Mining finished")
-        self.stop_farming()
-
-    def closeEvent(self, event):
-        """Обработчик закрытия окна"""
-        try:
-            # Останавливаем все процессы
-            if self.is_running:
-                try:
-                    self.stop_farming()
-                except:
-                    pass
-                try:
-                    self.stop_registration()
-                except:
-                    pass
-            
-            # Принудительно завершаем все потоки
-            if self.farming_thread:
-                try:
-                    self.farming_thread.stop()
-                    self.farming_thread.wait(1000)  # Ждем максимум 1 секунду
-                    if self.farming_thread.isRunning():
-                        self.farming_thread.terminate()
-                except:
-                    pass
-
-            # Закрываем приложение
-            QApplication.instance().quit()
-            
-            # Принудительно завершаем процесс
-            event.accept()
-            import os
-            os._exit(0)  # Принудительное завершение процесса
-            
-        except:
-            # В случае любой ошибки принудительно завершаем процесс
-            event.accept()
-            import os
-            os._exit(0)
+            logger.error(f"Ошибка при запуске фарминга: {e}")
+            self.ui.pushButton_StartFarming.setText("Start Farming")
+            self.is_farming = False
 
     def start_registration(self):
-        """Запускает процесс регистрации"""
+        self.save_changes()
+        logger.info("Запуск регистрации...")
+        # Здесь добавить логику запуска регистрации
+
+    def show_instructions(self):
+        logger.info("Открытие инструкций...")
+        # Добавить логику показа инструкций
+
+    def show_more_info(self):
+        logger.info("Открытие дополнительной информации...")
+        # Добавить логику показа дополнительной информации
+
+    def show_web3_info(self):
+        logger.info("Открытие информации о Web3...")
+        # Добавить логику показа информации о Web3
+
+    def convert_to_bool(self, value):
+        if isinstance(value, str):
+            return value.lower() == "true"
+        return bool(value)
+
+    def on_worker_finished(self):
+        logger.info("Операция успешно завершена")
+        self.ui.pushButton_StartFarming.setText("Start Farming")
+        self.is_farming = False
+
+    def on_worker_error(self, error_msg):
+        logger.error(f"Ошибка при выполнении: {error_msg}")
+        self.ui.pushButton_StartFarming.setText("Start Farming")
+        self.is_farming = False
+
+    def on_worker_stopped(self):
+        """Обработчи�� успешной остановки воркера"""
+        logger.info("Фарминг успешно остановлен")
+        self.ui.pushButton_StartFarming.setText("Start Farming")
+        self.ui.pushButton_StartFarming.setEnabled(True)
+        self.is_farming = False
+        if self.worker:
+            self.worker.quit()
+            self.worker.wait()
+            self.worker = None  # Очищаем ссылку на старый воркер
+
+    def update_lineedit_with_local_values(self):
+        current_service = self.ui.comboBox_CaptchaService.currentText()
+        if current_service in self.local_captcha_keys:
+            self.ui.lineEdit_CapthaAPI.setText(self.local_captcha_keys[current_service])
+
+    def update_local_value(self):
+        current_service = self.ui.comboBox_CaptchaService.currentText()
+        if current_service in self.local_captcha_keys:
+            self.local_captcha_keys[current_service] = self.ui.lineEdit_CapthaAPI.text()
+
+    def reset_to_default(self):
+        default_paths = {
+            "ACCOUNTS_FILE_PATH": DEFAULT_ACCOUNTS_FILE_PATH,
+            "PROXIES_FILE_PATH": DEFAULT_PROXIES_FILE_PATH,
+            "WALLETS_FILE_PATH": DEFAULT_WALLETS_FILE_PATH,
+            "PROXY_DB_PATH": DEFAULT_PROXY_DB_PATH,
+        }
+
+        for param_name, default_path in default_paths.items():
+            self.update_config_param(param_name, default_path)
+            self.initial_params[param_name] = default_path
+            logger.info(f"{param_name} updated to {default_path}.")
+
+        self.ui.pushButton_AccountsFile.setText(f"{DEFAULT_ACCOUNTS_FILE_PATH.split('/')[-1]}")
+        self.ui.pushButton_ProxyFile.setText(f"{DEFAULT_PROXIES_FILE_PATH.split('/')[-1]}")
+        self.ui.pushButton_WalletsFile.setText(f"{DEFAULT_WALLETS_FILE_PATH.split('/')[-1]}")
+        self.ui.pushButton_ProxyDB.setText(f"{DEFAULT_PROXY_DB_PATH.split('/')[-1]}")
+
+    def update_register_delay(self):
+        """Обновляет значения REGISTER_DELAY при изменении полей Min и Max"""
         try:
-            # Принудительно обновляем конфиг перед запуском
-            update_global_config()
-
-            # Проверяем и обновляем режимы
-            mining_mode, register_only = update_global_config()
-            if mining_mode or not register_only:
-                self.update_config_param("MINING_MODE", False)
-                self.update_config_param("REGISTER_ACCOUNT_ONLY", True)
-                update_global_config()  # Обновляем еще раз после изменений
-
-            # Остальной код запуска...
-            if self.is_running:
-                self.stop_farming()
-
-            self.is_running = True
-            self.ui.pushButton_Registration.setText("Stop register")
-            self.ui.pushButton_StartFarming.setEnabled(False)
-
-            self.farming_thread = FarmingThread()
-            self.farming_thread.error.connect(self.on_registration_error)
-            self.farming_thread.finished.connect(self.on_registration_finished)
-            self.farming_thread.start()
-
-        except Exception as e:
-            logger.error(f"Error starting registration: {e}")
-            self.stop_registration()
-
-    def stop_registration(self):
-        """Останавливает процесс регистрации"""
-        try:
-            if not self.is_running:
-                return
-
-            self.is_running = False
-            self.ui.pushButton_Registration.setText("Start register")
-            self.ui.pushButton_StartFarming.setEnabled(True)
-
-            if self.farming_thread:
-                self.farming_thread.stop()
-                self.farming_thread.wait()
-                self.farming_thread = None
-
-            logger.info("Registration stopped")
-
-        except Exception as e:
-            logger.error(f"Error stopping registration: {e}")
-
-    def on_registration_error(self, error_msg):
-        """Обработчик ошибок регистации"""
-        # logger.error(f"Error in registration: {error_msg}")
-        self.stop_registration()
-
-    def on_registration_finished(self):
-        """Обработчик завершения регистрации"""
-        # logger.info("Registration finished")
-        self.stop_registration()
+            min_delay = float(self.ui.lineEdit_Min.text())
+            max_delay = float(self.ui.lineEdit_Max.text())
+            if min_delay >= 0 and max_delay > min_delay:
+                global REGISTER_DELAY
+                REGISTER_DELAY = (min_delay, max_delay)
+                logger.info(f"REGISTER_DELAY обновлен: {REGISTER_DELAY}")
+            else:
+                logger.error("Некорректные значения задержки. Max должен быть больше Min, и Min должен быть >= 0")
+        except ValueError:
+            logger.error("Ошибка: введите корректные чиловые значения для задержки")
 
     def open_instructions(self):
         """Открывает инструкции в браузере"""
@@ -937,44 +497,40 @@ class MainApp(QMainWindow):
         QDesktopServices.openUrl(QUrl("https://gemups.com/"))
         logger.info("Opening Web3 products page...")
 
-    def process_events(self):
-        """Обрабатывает события UI"""
-        QApplication.processEvents()
+    def set_initial_node_type(self):
+        """Устанавливает начальное значение comboBox в соответствии с конфигом"""
+        node_type_map = {
+            "1x": "1x",
+            "1.25x": "1_25x",
+            "2x": "2x"
+        }
+        
+        # Получаем текущее значение из конфига и находим соответствующий индекс
+        current_value = NODE_TYPE.replace(".", "_") if NODE_TYPE else "1x"
+        index = self.ui.comboBox_NODE_TYPE.findText(current_value)
+        if index >= 0:
+            self.ui.comboBox_NODE_TYPE.setCurrentIndex(index)
 
-
-def global_exception_handler(exctype, value, traceback_obj):
-    """Глобальный обработчик исключений"""
-    error_msg = f"Uncaught exception: {exctype.__name__}: {value}"
-    logger.error(error_msg)
-    logger.error("Traceback:", exc_info=(exctype, value, traceback_obj))
+    def update_node_type(self):
+        """Обновляет NODE_TYPE при изменении значения в comboBox"""
+        node_type_map = {
+            "1x": "1x",
+            "1_25x": "1.25x",
+            "2x": "2x"
+        }
+        
+        selected_value = self.ui.comboBox_NODE_TYPE.currentText()
+        new_value = node_type_map.get(selected_value, "1x")
+        
+        try:
+            self.update_config_param('NODE_TYPE', new_value)
+            self.initial_params['NODE_TYPE'] = new_value
+            logger.info(f"NODE_TYPE updated to {new_value}")
+        except Exception as e:
+            logger.error(f"Error updating NODE_TYPE: {e}")
 
 def start_ui():
-    """Запускает UI с базовой обработкой ошибок"""
-    try:
-        # Устанавливаем глобальный обработчик исключений
-        sys.excepthook = global_exception_handler
-        
-        # Инициализируем приложение
-        app = QApplication(sys.argv)
-        
-        # Отключаем автоматическое закрытие
-        app.setQuitOnLastWindowClosed(False)
-        
-        # Создаем и показываем главное окно
-        window = MainApp()
-        window.show()
-        
-        # Запускаем главный цикл
-        return app.exec()
-        
-    except Exception as e:
-        logger.error(f"Critical error in UI: {str(e)}\n{traceback.format_exc()}")
-        return 1
-
-if __name__ == "__main__":
-    try:
-        sys.exit(start_ui())
-    except Exception as e:
-        logger.error(f"Fatal error: {str(e)}\n{traceback.format_exc()}")
-        sys.exit(1)
-
+    app = QApplication(sys.argv)
+    window = GrassInterface()
+    window.show()
+    sys.exit(app.exec())
