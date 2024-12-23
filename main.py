@@ -130,8 +130,11 @@ async def main():
     proxies = [Proxy.from_str(proxy).as_url for proxy in file_to_list(PROXIES_FILE_PATH)]
 
     #### delete DB if it exists to clean up
-    if os.path.exists(PROXY_DB_PATH):
-        os.remove(PROXY_DB_PATH)
+    try:
+        if os.path.exists(PROXY_DB_PATH):
+            os.remove(PROXY_DB_PATH)
+    except PermissionError:
+        logger.warning(f"Cannot remove {PROXY_DB_PATH}, file is in use")
 
     db = AccountsDB(PROXY_DB_PATH)
     await db.connect()
