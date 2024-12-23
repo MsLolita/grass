@@ -166,7 +166,7 @@ class GrassRest(BaseClient):
 
         response = await self.session.post(url, headers=self.website_headers, data=json.dumps(json_data),
                                            proxy=self.proxy)
-        logger.debug(f"{self.id} | Login response: {await response.text()}")
+        logger.debug(f"{self.id}")
 
         try:
             res_json = await response.json()
