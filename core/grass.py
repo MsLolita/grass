@@ -7,7 +7,7 @@ import aiohttp
 from fake_useragent import UserAgent
 from tenacity import stop_after_attempt, retry, retry_if_not_exception_type, wait_random, retry_if_exception_type
 
-from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN
+from data.config import MIN_PROXY_SCORE, CHECK_POINTS, STOP_ACCOUNTS_WHEN_SITE_IS_DOWN, NODE_TYPE
 
 try:
     from data.config import SHOW_LOGS_RARELY
@@ -98,15 +98,16 @@ class Grass(GrassWs, GrassRest, FailureCounter):
 
                 await self.auth_to_extension(browser_id, user_id)
 
-                if self.proxy_score is None:
-                    await asyncio.sleep(1)
-
-                    if MIN_PROXY_SCORE:
-                        await self.handle_proxy_score(MIN_PROXY_SCORE, browser_id)
-
+                if NODE_TYPE != "2x":
                     await self.handle_http_request_action()
 
                 for i in range(10 ** 9):
+                    if MIN_PROXY_SCORE and self.proxy_score is None:
+                        if i < 3:
+                            await self.handle_proxy_score(MIN_PROXY_SCORE, browser_id)
+                        else:
+                            raise ProxyScoreNotFoundException("Proxy score not found")
+
                     await self.send_ping()
                     await self.send_pong()
 
@@ -115,6 +116,9 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                             logger.info(f"{self.id} | Mined grass.")
                     else:
                         logger.info(f"{self.id} | Mined grass.")
+
+                    if MIN_PROXY_SCORE and self.proxy_score is None:
+                        await self.handle_proxy_score(MIN_PROXY_SCORE, browser_id)
 
                     if CHECK_POINTS and not (i % 100):
                         points = await self.get_points_handler()
@@ -136,7 +140,7 @@ class Grass(GrassWs, GrassRest, FailureCounter):
                 # await self.delay_with_log(msg=f"{self.id} | Reconnecting with delay for some minutes...", sleep_time=60)
             # except Exception as e:
             #     logger.info(f"{self.id} | {traceback.format_exc()}")
-            await self.failure_handler(limit=2)
+            await self.failure_handler(limit=3)
 
             await asyncio.sleep(5, 10)
 
@@ -157,22 +161,26 @@ class Grass(GrassWs, GrassRest, FailureCounter):
         await self.connect()
         logger.info(f"{self.id} | Connected")
 
-    @retry(stop=stop_after_attempt(5),
-           retry=retry_if_not_exception_type(LowProxyScoreException),
-           before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
-           wait=wait_random(5, 7),
-           reraise=True)
+    # @retry(stop=stop_after_attempt(3),
+    #        retry=retry_if_not_exception_type(LowProxyScoreException),
+    #        before_sleep=lambda retry_state, **kwargs: logger.info(f"{retry_state.outcome.exception()}"),
+    #        wait=wait_random(1, 3))
     async def handle_proxy_score(self, min_score: int, browser_id: str):
-        if (proxy_score := await self.get_proxy_score_by_device_handler(browser_id)) is None:
-            # logger.info(f"{self.id} | Proxy score not found for {self.proxy}. Guess Bad proxies! Continue...")
-            # return None
-            raise ProxyScoreNotFoundException(f"{self.id} | Proxy score not found! Retrying...")
-        elif proxy_score >= min_score:
-            self.proxy_score = proxy_score
-            logger.success(f"{self.id} | Proxy score: {self.proxy_score}")
-            return True
-        else:
-            raise LowProxyScoreException(f"{self.id} | Too low proxy score: {proxy_score} for {self.proxy}. Retrying...")
+        for _ in range(3):
+            await asyncio.sleep(25, 30)
+            if (proxy_score := await self.get_proxy_score_by_device_handler(browser_id)) is None:
+                # logger.info(f"{self.id} | Proxy score not found for {self.proxy}. Guess Bad proxies! Continue...")
+                # return None
+                pass
+            elif proxy_score >= min_score:
+                self.proxy_score = proxy_score
+                logger.success(f"{self.id} | Proxy score: {self.proxy_score}")
+                return True
+            else:
+                raise LowProxyScoreException(f"{self.id} | Too low proxy score: {proxy_score} for {self.proxy}. Retrying...")
+
+        logger.info(f"{self.id} | Proxy score not found for {self.proxy}. Waiting for score...")
+
 
     async def change_proxy(self):
         self.proxy = await self.get_new_proxy()

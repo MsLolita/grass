@@ -196,8 +196,12 @@ if __name__ == "__main__":
         if not USE_CONSOLE_VERSION:
             import interface
             interface.start_ui()
+        else:
+            bot_info("GRASS_AUTO")
+            loop = asyncio.ProactorEventLoop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(main())
+    else:
+        bot_info("GRASS_AUTO")
 
-    bot_info("GRASS_AUTO")
-    loop = asyncio.ProactorEventLoop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(main())
+        asyncio.run(main())

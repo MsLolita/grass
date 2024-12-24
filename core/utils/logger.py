@@ -114,5 +114,5 @@ def clean_brackets(raw_str):
 # Regex pattern for matching HTML-style brackets
 brackets_regex = re.compile(r'<.*?>')
 
-# Example usage (assuming `text_edit` is your QTextEdit instance):
+
 logging_setup(gui_mode=False)
