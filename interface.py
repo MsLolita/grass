@@ -20,7 +20,7 @@ from data.config import (
 from PySide6.QtCore import QThread, Signal, QUrl
 from main import main
 
-# Пути по умолчанию
+# Default paths
 DEFAULT_ACCOUNTS_FILE_PATH = 'data/accounts.txt'
 DEFAULT_PROXIES_FILE_PATH = 'data/proxies.txt'
 DEFAULT_WALLETS_FILE_PATH = 'data/wallets.txt'
@@ -29,50 +29,74 @@ DEFAULT_PROXY_DB_PATH = 'data/proxies_stats.db'
 
 
 class AsyncWorker(QThread):
-    finished = Signal()
-    error = Signal(str)
-    stopped = Signal()
-
+    """
+    Asynchronous worker for executing main operations in a separate thread.
+    Prevents interface freezing during long-running operations.
+    """
+    finished = Signal()  # Work completion signal
+    error = Signal(str)  # Error signal with message
+    stopped = Signal()   # Force stop signal
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.is_running = False
-        self.loop = None
+        self.is_running = False  # Worker running flag
+        self.loop = None        # Event loop reference
         
     def stop(self):
-        """Безопасная остановка воркера"""
+        """
+        Safely stops the worker.
+        Cancels all asynchronous tasks and closes the event loop.
+        """
         self.is_running = False
         if self.loop and self.loop.is_running():
             try:
-                # Отменяем все задачи в текущем loop
+                # Cancel all tasks in current loop
                 for task in asyncio.all_tasks(self.loop):
                     task.cancel()
-                self.stopped.emit()
             except Exception as e:
-                logger.error(f"Ошибка при остановке: {e}")
-                self.terminate()  # Принудительная остановка в случае ошибки
+                logger.error(f"Error during stop: {e}")
+                self.terminate()  # Force stop in case of error
         
     def run(self):
+        """
+        Main execution method.
+        Sets up event loop and launches main program logic.
+        """
         try:
             self.is_running = True
             
+            # Windows event loop setup
             if sys.platform == 'win32':
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
             
+            # Reload modules to update configuration
             try:
-                self.loop.run_until_complete(main())
+                import main
+                importlib.reload(main)
+                # Reload dependent modules
+                if 'core.grass' in sys.modules:
+                    importlib.reload(sys.modules['core.grass'])
+                if 'core.autoreger' in sys.modules:
+                    importlib.reload(sys.modules['core.autoreger'])
+            except Exception as e:
+                logger.error(f"Error reloading modules: {e}")
+            
+            try:
+                self.loop.run_until_complete(main.main())
                 if self.is_running:
                     self.finished.emit()
             except asyncio.CancelledError:
-                logger.info("Процесс был остановлен пользователем")
+                mode = "registration" if globals().get('REGISTER_ACCOUNT_ONLY', False) else "farming"
+                logger.info(f"{mode.capitalize()} process was stopped by user")
                 self.stopped.emit()
             except Exception as e:
                 if self.is_running:
                     self.error.emit(str(e))
-                    logger.error(f"Ошибка: {e}")
+                    logger.error(f"Error: {e}")
             finally:
+                # Close event loop
                 try:
                     if self.loop and self.loop.is_running():
                         self.loop.stop()
@@ -86,22 +110,32 @@ class AsyncWorker(QThread):
 
 
 def update_global_config():
-    """Обновляет глобальные переменные из файла конфига"""
+    """
+    Updates global variables from config file.
+    Synchronizes values between all program modules.
+    
+    Returns:
+        tuple: (mining_mode, register_only) - current operation modes
+    """
     try:
-        # Принудительно перечитываем файл конфига
+        # Read config
         with open('data/config.py', 'r', encoding='utf-8') as file:
             config_content = file.read()
 
-        # Создаем новое пространство имен для выполнения конфига
+        # Create isolated namespace
         config_globals = {}
         exec(config_content, config_globals)
 
-        # Обновляем глобальные переменные в текущем моуле
+        # Update global variables in all modules
         for key, value in config_globals.items():
             if not key.startswith('__'):
                 globals()[key] = value
+                # Sync with other modules
+                for module_name in ['main', 'core.grass', 'core.autoreger']:
+                    if module_name in sys.modules:
+                        setattr(sys.modules[module_name], key, value)
 
-        # Обновляем локальные значения API ключей если они существуют
+        # Update captcha API keys
         if hasattr(globals().get('MainApp', None), 'local_captcha_keys'):
             for service, param_name in globals()['MainApp'].captcha_services.items():
                 globals()['MainApp'].local_captcha_keys[service] = config_globals.get(param_name, "")
@@ -115,18 +149,22 @@ def update_global_config():
 
 #mining_mode, register_only = update_global_config()
 class GrassInterface(QMainWindow):
+    """
+    Main interface class of the program.
+    Manages all GUI elements and handles user interaction.
+    """
     def __init__(self):
         super(GrassInterface, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         
-        # Инициализация логгера
+        # Initialize logger
         logging_setup(gui_mode=True, text_edit=self.ui.textEdit_Log)
         mining_mode, register_only = update_global_config()
 
-        # Добавим обработку ошибок при загрузке изображения
+        # Add error handling for image loading
         try:
-            # Установка иконки окна
+            # Set window icon
             self.setWindowTitle("Grass")
             window_icon = QPixmap("core/static/ico.png")
             if not window_icon.isNull():
@@ -134,7 +172,7 @@ class GrassInterface(QMainWindow):
             else:
                 logger.error("Failed to load window icon: icon is null")
         
-            # Загрузка основного изображения
+            # Load main image
             pixmap = QPixmap("core/static/image.png")
             if not pixmap.isNull():
                 self.ui.label_13.setPixmap(pixmap)
@@ -145,7 +183,7 @@ class GrassInterface(QMainWindow):
         except Exception as e:
             logger.error(f"Error loading images: {e}")
         
-        # Словарь для хранения API ключей
+        # Dictionary for storing captcha service API keys
         self.local_captcha_keys = {
             "TWO_CAPTCHA": TWO_CAPTCHA_API_KEY,
             "ANTICAPTCHA": ANTICAPTCHA_API_KEY,
@@ -154,7 +192,7 @@ class GrassInterface(QMainWindow):
             "CAPTCHAAI": CAPTCHAAI_API_KEY
         }
         
-        # Связь значений ComboBox с параметрами конфига
+        # Mapping of captcha services to config parameters
         self.captcha_services = {
             "TWO_CAPTCHA": "TWO_CAPTCHA_API_KEY",
             "ANTICAPTCHA": "ANTICAPTCHA_API_KEY",
@@ -163,7 +201,7 @@ class GrassInterface(QMainWindow):
             "CAPTCHAAI": "CAPTCHAAI_API_KEY"
         }
         
-        # Сохраняем начальные значения параметров
+        # Save initial values for change tracking
         self.initial_params = {
             'THREADS': THREADS,
             'MIN_PROXY_SCORE': MIN_PROXY_SCORE,
@@ -185,7 +223,7 @@ class GrassInterface(QMainWindow):
             'NODE_TYPE': NODE_TYPE,
         }
         
-        # Инициализация полей
+        # Initialize fields
         self.ui.lineEdit_Threads.setText(str(THREADS))
         self.ui.lineEdit_MinProxyScore.setText(str(MIN_PROXY_SCORE))
         self.ui.lineEdit_EmailFolder.setText(EMAIL_FOLDER)
@@ -194,7 +232,7 @@ class GrassInterface(QMainWindow):
         self.ui.lineEdit_Min.setText(str(REGISTER_DELAY[0]))
         self.ui.lineEdit_Max.setText(str(REGISTER_DELAY[1]))
 
-        # Конвертируем булевы значения из config в Python-формат
+        # Convert boolean values from config to Python format
         '''Tab1'''
         self.ui.checkBox_ApproveEmail.setChecked(self.convert_to_bool(APPROVE_EMAIL))
         self.ui.checkBox_ConnectWallet.setChecked(self.convert_to_bool(CONNECT_WALLET))
@@ -210,19 +248,19 @@ class GrassInterface(QMainWindow):
         '''Tab3'''
         self.ui.checkBox_ClaimRewardOnly.setChecked(self.convert_to_bool(CLAIM_REWARDS_ONLY))
 
-        # Очистка comboBox и добавление начений
+        # Clear comboBox and add values
         self.ui.comboBox_CaptchaService.clear()
         self.ui.comboBox_CaptchaService.addItems(self.captcha_services.keys())
 
-        # Установка текущего значения lineEdit_CapthaAPI
+        # Set initial value for lineEdit_CapthaAPI
         self.update_lineedit_with_local_values()
 
-        # Подключение событий
+        # Connect events
         self.ui.pushButton_Save.clicked.connect(self.save_changes)
         self.ui.comboBox_CaptchaService.currentTextChanged.connect(self.update_lineedit_with_local_values)
         self.ui.lineEdit_CapthaAPI.textChanged.connect(self.update_local_value)
 
-        # Привязка кнопок к функции изменения путей
+        # Connect buttons to change file paths
         self.ui.pushButton_AccountsFile.clicked.connect(
             lambda: self.update_file_path("ACCOUNTS_FILE_PATH", self.ui.pushButton_AccountsFile)
         )
@@ -236,26 +274,26 @@ class GrassInterface(QMainWindow):
             lambda: self.update_file_path("PROXY_DB_PATH", self.ui.pushButton_ProxyDB)
         )
 
-        # Привязка кнопки Default
+        # Connect Default button
         self.ui.pushButton_Default.clicked.connect(self.reset_to_default)
 
-        # Привязка изменений REGISTER_DELAY
+        # Connect REGISTER_DELAY changes
         self.ui.lineEdit_Min.textChanged.connect(self.update_register_delay)
         self.ui.lineEdit_Max.textChanged.connect(self.update_register_delay)
 
-        # Подключение основных кнопок
+        # Connect main buttons
         self.ui.pushButton_StartFarming.clicked.connect(self.start_farming)
         self.ui.pushButton_Registration.clicked.connect(self.start_registration)
 
-        # Подключение информационных кнопок
+        # Connect informational buttons
         self.ui.pushButton_Instructions.clicked.connect(self.open_instructions)
         self.ui.pushButton_more.clicked.connect(self.open_telegram)
         self.ui.pushButton_Web3.clicked.connect(self.open_web3)
 
-        # Подключаем обработчик изменения NODE_TYPE
+        # Connect NODE_TYPE changes
         self.ui.comboBox_NODE_TYPE.currentTextChanged.connect(self.update_node_type)
         
-        # Устанавливаем текущее значение NODE_TYPE
+        # Set initial NODE_TYPE
         self.set_initial_node_type()
 
         self.worker = None
@@ -315,7 +353,7 @@ class GrassInterface(QMainWindow):
                 'CLAIM_REWARDS_ONLY': self.ui.checkBox_ClaimRewardOnly.isChecked(),
             }
 
-            # Сохраняем основные параметры
+            # Save main parameters
             for param_name, new_value in params_to_save.items():
                 old_value = self.initial_params.get(param_name)
                 if old_value != new_value:
@@ -323,17 +361,17 @@ class GrassInterface(QMainWindow):
                     logger.info(f"{param_name} updated from {old_value} to {new_value}.")
                     self.initial_params[param_name] = new_value
 
-            # Сохраняем API ключи капчи
+            # Save captcha API keys
             for service, param_name in self.captcha_services.items():
                 api_key_value = self.local_captcha_keys[service]
                 old_value = globals().get(param_name)
                 if old_value != api_key_value:
                     self.update_config_param(param_name, api_key_value)
-                    # Обновляем глобальную переменную сразу после сохранения
+                    # Update global variable immediately after saving
                     globals()[param_name] = api_key_value
                     logger.info(f"API-key for {service} updated to {api_key_value}.")
 
-            # Принудительно перезагружаем все модули, которые могут использовать конфиг
+            # Force reload all modules that may use config
             modules_to_reload = [
                 'data.config',
                 'core.grass',
@@ -349,10 +387,10 @@ class GrassInterface(QMainWindow):
                 except Exception as e:
                     logger.error(f"Error reloading module {module_name}: {e}")
 
-            # Обновляем глобальные переменные
+            # Update global variables
             update_global_config()
 
-            # Очищаем кэш импортов для модулей
+            # Invalidate cache for modules
             importlib.invalidate_caches()
 
             logger.info("All parameters saved and modules reloaded.")
@@ -364,25 +402,36 @@ class GrassInterface(QMainWindow):
         logger.info(message)
 
     def start_farming(self):
+        """
+        Starts the farming process.
+        Sets appropriate flags and creates new worker.
+        """
         try:
+            # Set correct modes for farming
+            self.update_config_param("MINING_MODE", True)
+            self.update_config_param("REGISTER_ACCOUNT_ONLY", False)
+            
+            # Save changes and reload modules
+            self.save_changes()
+            
+            # Force update global variables
+            mining_mode, register_only = update_global_config()
+            
             if self.is_farming:
-                # Останавливаем процесс
                 if self.worker:
-                    logger.info("Остановка фарминга...")
+                    logger.info("Stopping farming...")
                     self.worker.stop()
                     self.ui.pushButton_StartFarming.setEnabled(False)
+                    self.ui.pushButton_Registration.setEnabled(True)  # Enable registration button when stopping
                 return
 
-            # Проверяем и очищаем старый воркер если он есть
             if self.worker:
                 self.worker.quit()
                 self.worker.wait()
                 self.worker = None
 
-            # Запускаем процесс
-            self.save_changes()
-            logger.info("Запуск фарминга...")
-
+            logger.info("Starting farming...")
+            
             self.worker = AsyncWorker(self)
             self.worker.finished.connect(self.on_worker_finished)
             self.worker.error.connect(self.on_worker_error)
@@ -390,29 +439,61 @@ class GrassInterface(QMainWindow):
             self.worker.start()
 
             self.ui.pushButton_StartFarming.setText("Stop Farming")
+            self.ui.pushButton_Registration.setEnabled(False)  # Disable registration button while farming
             self.is_farming = True
 
         except Exception as e:
-            logger.error(f"Ошибка при запуске фарминга: {e}")
+            logger.error(f"Error starting farming: {e}")
             self.ui.pushButton_StartFarming.setText("Start Farming")
+            self.ui.pushButton_Registration.setEnabled(True)
             self.is_farming = False
 
     def start_registration(self):
-        self.save_changes()
-        logger.info("Запуск регистрации...")
-        # Здесь добавить логику запуска регистрации
+        """
+        Starts the registration process.
+        Sets appropriate flags and creates new worker.
+        """
+        try:
+            # Set correct modes for registration
+            self.update_config_param("MINING_MODE", False)
+            self.update_config_param("REGISTER_ACCOUNT_ONLY", True)
+            
+            # Save changes and reload modules
+            self.save_changes()
+            
+            # Force update global variables
+            mining_mode, register_only = update_global_config()
+            
+            if self.is_farming:
+                if self.worker:
+                    logger.info("Stopping registration...")
+                    self.worker.stop()
+                    self.ui.pushButton_Registration.setEnabled(False)
+                    self.ui.pushButton_StartFarming.setEnabled(True)  # Enable farming button when stopping
+                return
 
-    def show_instructions(self):
-        logger.info("Открытие инструкций...")
-        # Добавить логику показа инструкций
+            if self.worker:
+                self.worker.quit()
+                self.worker.wait()
+                self.worker = None
 
-    def show_more_info(self):
-        logger.info("Открытие дополнительной информации...")
-        # Добавить логику показа дополнительной информации
+            logger.info("Starting registration...")
+            
+            self.worker = AsyncWorker(self)
+            self.worker.finished.connect(self.on_worker_finished)
+            self.worker.error.connect(self.on_worker_error)
+            self.worker.stopped.connect(self.on_worker_stopped)
+            self.worker.start()
 
-    def show_web3_info(self):
-        logger.info("Открытие информации о Web3...")
-        # Добавить логику показа информации о Web3
+            self.ui.pushButton_Registration.setText("Stop Registration")
+            self.ui.pushButton_StartFarming.setEnabled(False)  # Disable farming button while registering
+            self.is_farming = True
+
+        except Exception as e:
+            logger.error(f"Error starting registration: {e}")
+            self.ui.pushButton_Registration.setText("Start Registration")
+            self.ui.pushButton_StartFarming.setEnabled(True)
+            self.is_farming = False
 
     def convert_to_bool(self, value):
         if isinstance(value, str):
@@ -420,25 +501,41 @@ class GrassInterface(QMainWindow):
         return bool(value)
 
     def on_worker_finished(self):
-        logger.info("Операция успешно завершена")
+        """
+        Handler for successful worker completion.
+        Updates UI and logs according to current mode.
+        """
+        mode = "registration" if globals().get('REGISTER_ACCOUNT_ONLY', False) else "farming"
+        logger.info(f"{mode.capitalize()} operation completed successfully")
         self.ui.pushButton_StartFarming.setText("Start Farming")
+        self.ui.pushButton_Registration.setText("Start Registration")
+        self.ui.pushButton_StartFarming.setEnabled(True)
+        self.ui.pushButton_Registration.setEnabled(True)
         self.is_farming = False
 
     def on_worker_error(self, error_msg):
-        logger.error(f"Ошибка при выполнении: {error_msg}")
+        """Handler for worker errors"""
+        mode = "registration" if globals().get('REGISTER_ACCOUNT_ONLY', False) else "farming"
+        logger.error(f"Error during {mode}: {error_msg}")
         self.ui.pushButton_StartFarming.setText("Start Farming")
+        self.ui.pushButton_Registration.setText("Start Registration")
+        self.ui.pushButton_StartFarming.setEnabled(True)
+        self.ui.pushButton_Registration.setEnabled(True)
         self.is_farming = False
 
     def on_worker_stopped(self):
-        """Обработчи�� успешной остановки воркера"""
-        logger.info("Фарминг успешно остановлен")
+        """Handler for successful worker stop"""
+        mode = "registration" if globals().get('REGISTER_ACCOUNT_ONLY', False) else "farming"
+        logger.info(f"{mode.capitalize()} stopped successfully")
         self.ui.pushButton_StartFarming.setText("Start Farming")
+        self.ui.pushButton_Registration.setText("Start Registration")
         self.ui.pushButton_StartFarming.setEnabled(True)
+        self.ui.pushButton_Registration.setEnabled(True)
         self.is_farming = False
         if self.worker:
             self.worker.quit()
             self.worker.wait()
-            self.worker = None  # Очищаем ссылку на старый воркер
+            self.worker = None  # Clear reference to old worker
 
     def update_lineedit_with_local_values(self):
         current_service = self.ui.comboBox_CaptchaService.currentText()
@@ -469,50 +566,50 @@ class GrassInterface(QMainWindow):
         self.ui.pushButton_ProxyDB.setText(f"{DEFAULT_PROXY_DB_PATH.split('/')[-1]}")
 
     def update_register_delay(self):
-        """Обновляет значения REGISTER_DELAY при изменении полей Min и Max"""
+        """Updates REGISTER_DELAY values when Min and Max fields change"""
         try:
             min_delay = float(self.ui.lineEdit_Min.text())
             max_delay = float(self.ui.lineEdit_Max.text())
             if min_delay >= 0 and max_delay > min_delay:
                 global REGISTER_DELAY
                 REGISTER_DELAY = (min_delay, max_delay)
-                logger.info(f"REGISTER_DELAY обновлен: {REGISTER_DELAY}")
+                logger.info(f"REGISTER_DELAY updated: {REGISTER_DELAY}")
             else:
-                logger.error("Некорректные значения задержки. Max должен быть больше Min, и Min должен быть >= 0")
+                logger.error("Invalid delay values. Max should be greater than Min, and Min should be >= 0")
         except ValueError:
-            logger.error("Ошибка: введите корректные чиловые значения для задержки")
+            logger.error("Error: please enter valid numeric values for delay")
 
     def open_instructions(self):
-        """Открывает инструкции в браузере"""
+        """Opens instructions in browser"""
         QDesktopServices.openUrl(QUrl("https://teletype.in/@c6zr7/grass_for_EnJoYeR"))
         logger.info("Opening instructions page...")
 
     def open_telegram(self):
-        """Открывает Telegram канал"""
+        """Opens Telegram channel"""
         QDesktopServices.openUrl(QUrl("https://t.me/web3_enjoyer_club"))
         logger.info("Opening Telegram channel...")
 
     def open_web3(self):
-        """Открывает Web3 продукты"""
+        """Opens Web3 products"""
         QDesktopServices.openUrl(QUrl("https://gemups.com/"))
         logger.info("Opening Web3 products page...")
 
     def set_initial_node_type(self):
-        """Устанавливает начальное значение comboBox в соответствии с конфигом"""
+        """Sets initial comboBox value according to config"""
         node_type_map = {
             "1x": "1x",
             "1.25x": "1_25x",
             "2x": "2x"
         }
         
-        # Получаем текущее значение из конфига и находим соответствующий индекс
+        # Get current value from config and find corresponding index
         current_value = NODE_TYPE.replace(".", "_") if NODE_TYPE else "1x"
         index = self.ui.comboBox_NODE_TYPE.findText(current_value)
         if index >= 0:
             self.ui.comboBox_NODE_TYPE.setCurrentIndex(index)
 
     def update_node_type(self):
-        """Обновляет NODE_TYPE при изменении значения в comboBox"""
+        """Updates NODE_TYPE when comboBox value changes"""
         node_type_map = {
             "1x": "1x",
             "1_25x": "1.25x",

@@ -716,7 +716,7 @@ class Ui_MainWindow(object):
         self.pushButton_AccountsFile.setText(QCoreApplication.translate("MainWindow", u"Click", None))
         self.pushButton_WalletsFile.setText(QCoreApplication.translate("MainWindow", u"Click", None))
         self.pushButton_StartFarming.setText(QCoreApplication.translate("MainWindow", u"Start Farming", None))
-        self.pushButton_Registration.setText(QCoreApplication.translate("MainWindow", u"Registration", None))
+        self.pushButton_Registration.setText(QCoreApplication.translate("MainWindow", u"Start Registration", None))
         self.pushButton_Save.setText(QCoreApplication.translate("MainWindow", u"Save", None))
         self.textEdit_Log.setPlaceholderText(QCoreApplication.translate("MainWindow", u"Logs...", None))
     # retranslateUi

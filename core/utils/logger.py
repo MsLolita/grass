@@ -18,84 +18,101 @@ class QTextEditHandler:
     def write(self, message: str):
         clean_message = clean_brackets(message)
         
-        # Определяем цвета в зависимости от уровня логирования
+        # Define colors based on logging level
         if "ERROR" in message:
             colors = {
-                "time": QColor("#00FF00"),  # зеленый
-                "level": QColor("#FF0000"),  # красный
-                "message": QColor("#FF0000")  # красный
+                "time": QColor("#00FF00"),  # green
+                "level": QColor("#FF0000"),  # red
+                "message": QColor("#FF0000")  # red
             }
         elif "WARNING" in message:
             colors = {
-                "time": QColor("#27e868"),  # зеленый
-                "level": QColor("#FFD700"),  # желтый
-                "message": QColor("#FFD700")  # желтый
+                "time": QColor("#27e868"),  # green
+                "level": QColor("#FFD700"),  # yellow
+                "message": QColor("#FFD700")  # yellow
             }
         elif "INFO" in message:
             colors = {
-                "time": QColor("#27e868"),  # зеленый
-                "level": QColor("#32c2c2"),  # синий
-                "message": QColor("#FFFFFF")  # белый
+                "time": QColor("#27e868"),  # green
+                "level": QColor("#32c2c2"),  # blue
+                "message": QColor("#FFFFFF")  # white
             }
         else:
             colors = {
-                "time": QColor("#27e868"),  # зеленый
-                "level": QColor("#d137d4"),  # синий
-                "message": QColor("#eb811e")  # белый
+                "time": QColor("#27e868"),  # green
+                "level": QColor("#d137d4"),  # blue
+                "message": QColor("#eb811e")  # orange
             }
             
-        # Отправляем сигнал для обновления UI
+        # Send signal to update UI
         self.signals.new_log.emit(clean_message, colors)
 
     @Slot(str, dict)
     def append_message(self, message: str, colors: dict):
-        # Разделяем сообщение на части
+        # Split message into parts
         parts = message.split(" ", 2)
         if len(parts) >= 3:
             time_part, level_part, message_part = parts
 
-            # Добавляем время
+            # Add timestamp
             self.text_edit.setTextColor(colors["time"])
             self.text_edit.insertPlainText(time_part + " ")
 
-            # Добавляем уровень
+            # Add log level
             self.text_edit.setTextColor(colors["level"])
             self.text_edit.insertPlainText(level_part + " ")
 
-            # Добавляем сообщение
+            # Add message content
             self.text_edit.setTextColor(colors["message"])
             self.text_edit.insertPlainText(message_part + "\n")
 
-        # Прокручиваем до конца
+        # Scroll to bottom
         scrollbar = self.text_edit.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
 
 def logging_setup(gui_mode=False, text_edit=None):
+    """
+    Sets up logging configuration for both GUI and console modes.
+    
+    Args:
+        gui_mode (bool): If True, logs will be directed to QTextEdit widget
+        text_edit (QTextEdit): Text widget for displaying logs in GUI mode
+    """
     format_info = "<green>{time:HH:mm:ss.SS}</green> <blue>{level}</blue> <level>{message}</level>"
     format_error = "<green>{time:HH:mm:ss.SS}</green> <blue>{level}</blue> | " \
                    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>"
     file_path = r"logs/"
 
-    logger.remove()  # Удаляем все предыдущие обработчики
+    logger.remove()  # Remove all previous handlers
 
     if gui_mode and text_edit is not None:
-        # В GUI режиме добавляем только один обработчик для QTextEdit
+        # In GUI mode, add only QTextEdit handler
         handler = QTextEditHandler(text_edit)
         logger.add(handler, format=format_info, level="INFO")
     else:
-        # В консольном режиме добавляем обработчики для файла и stdout
+        # In console mode, add handlers for both file and stdout
         logger.add(file_path + f"out_{date.today().strftime('%m-%d')}.log", colorize=True,
                    format=format_info)
         logger.add(sys.stdout, colorize=True, format=format_info, level="INFO")
 
 
 def clean_brackets(raw_str):
+    """
+    Removes HTML-style brackets from string.
+    
+    Args:
+        raw_str (str): Input string containing HTML-style brackets
+        
+    Returns:
+        str: Cleaned string without brackets
+    """
     clean_text = re.sub(brackets_regex, '', raw_str)
     return clean_text
 
 
+# Regex pattern for matching HTML-style brackets
 brackets_regex = re.compile(r'<.*?>')
 
-# Пример использования (предполага��тся, что `text_edit` — это ваш экземпляр QTextEdit):
-# logging_setup(gui_mode=True, text_edit=text_edit)
+# Example usage (assuming `text_edit` is your QTextEdit instance):
+logging_setup(gui_mode=False)
