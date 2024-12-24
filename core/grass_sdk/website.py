@@ -7,7 +7,6 @@ import time
 
 import base58
 from aiohttp import ContentTypeError, ClientConnectionError
-from pydantic.networks import pretty_email_regex
 from tenacity import retry, stop_after_attempt, wait_random, retry_if_not_exception_type
 
 from core.utils import logger, loguru
@@ -166,8 +165,6 @@ class GrassRest(BaseClient):
 
         response = await self.session.post(url, headers=self.website_headers, data=json.dumps(json_data),
                                            proxy=self.proxy)
-        logger.debug(f"{self.id}")
-
         try:
             res_json = await response.json()
             if res_json.get("error") is not None:

@@ -98,4 +98,4 @@ def clean_brackets(raw_str):
 brackets_regex = re.compile(r'<.*?>')
 
 # Пример использования (предполага��тся, что `text_edit` — это ваш экземпляр QTextEdit):
-# logging_setup(gui_mode=True, text_edit=text_edit)
+logging_setup(gui_mode=False)
