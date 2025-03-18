@@ -40,7 +40,7 @@ class FailureCounter:
             if is_raise:
                 raise_error(FailureLimitReachedException(self.fail_count))
             else:
-                sleep_time = random.randint(2, 5) * 60
+                sleep_time = random.randint(2, 3) * 60
                 msg = f"{self.id} | Sleeping for {int(sleep_time)} seconds... Too many errors. Retrying..."
                 await self.reset_with_delay(msg, sleep_time)
         else:
@@ -62,7 +62,7 @@ class FailureCounter:
 
     @staticmethod
     async def clear_global_counter():
-        await asyncio.sleep(10 * 60)
+        await asyncio.sleep(5 * 60)
 
         FailureCounter.global_fail_counter = {x: 1 for x in FailureCounter.global_fail_counter}
 

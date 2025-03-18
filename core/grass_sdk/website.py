@@ -172,6 +172,12 @@ class GrassRest(BaseClient):
         except ContentTypeError as e:
             logger.info(f"{self.id} | Login response: Could not parse response as JSON. '{e}'")
 
+        if response.status == 429:
+            retry_after = response.headers.get("Retry-After")
+            retry_after = int(retry_after) if retry_after and retry_after.isdigit() else 6
+            logger.warning(f"{self.id} | Detected Cloudflare Rate limited. Retrying after {retry_after} seconds...")
+            await asyncio.sleep(retry_after)
+
         resp_text = await response.text()
 
         # Check if the response is HTML
@@ -391,16 +397,14 @@ Nonce: {timestamp}"""
                      if device['ipAddress'] == self.ip), None)
 
     async def get_proxy_score_via_devices(self):
-        res_json = await self.get_devices_info()
+        url = 'https://api.getgrass.io/users/devices'
 
-        if not (isinstance(res_json, dict) and res_json.get("result", None) is not None):
-            return
+        response = await self.session.get(url, headers=self.website_headers, proxy=self.proxy)
 
-        devices = res_json['result']['data']
-        await self.update_ip()
+        if response.status != 200:
+            raise ProxyScoreNotFoundException(f"Get proxy score response: {await response.text()}")
 
-        return next((device['ipScore'] for device in devices
-                     if device['ipAddress'] == self.ip), None)
+        return await response.json()
 
     # async def get_proxy_score(self, device_id: str, user_id: str):
     #     device_info = await self.get_device_info(device_id, user_id)
@@ -439,7 +443,7 @@ Nonce: {timestamp}"""
         return json_data
 
     async def update_ip(self):
-        self.ip = await self.get_ip()
+        return await self.get_ip()
 
     async def get_ip(self):
         return await (await self.session.get('https://api.ipify.org', proxy=self.proxy)).text()
